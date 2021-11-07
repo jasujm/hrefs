@@ -15,7 +15,10 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-  "pytest>=6.2"
+  "pytest>=6.2",
+  "black",
+  "pylint",
+  "mypy"
 ]
 
 [project.urls]

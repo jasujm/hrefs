@@ -2,17 +2,25 @@
 
 import pydantic
 
-class Href:
-    """Href to another model"""
 
-    def __init__(self, id: int, url: pydantic.AnyHttpUrl):
-        self._id = id
+class Href:
+    """Hypertext reference to another model
+
+    Arguments:
+      key: the key used by the application to identify the model internally
+      url: the URL identifying the model externally (e.g. via REST API)
+    """
+
+    def __init__(self, key: int, url: pydantic.AnyHttpUrl):
+        self._key = key
         self._url = url
 
-    def get_id(self):
-        return self._id
+    def get_key(self):
+        """Return the key of the referred object"""
+        return self._key
 
     def get_url(self):
+        """Return the URL of the referred object"""
         return self._url
 
     @classmethod
@@ -20,9 +28,20 @@ class Href:
         yield cls.validate
 
     @classmethod
-    def validate(cls, v):
-        if isinstance(v, int):
-            return cls(id=v, url=f"/{v}")
-        if isinstance(v, str):
-            return cls(id=int(v.split("/")[-1]), url=v)
-        raise TypeError(f"{v} is not int or str")
+    def validate(cls, value):
+        """Validate reference
+
+        A reference can either be parsed from key or URL.
+
+        Arguments:
+          value: key or URL
+
+        Return:
+          A ``Href`` object referring to the model identified by the ``value``
+          argument
+        """
+        if isinstance(value, int):
+            return cls(key=value, url=f"/{value}")
+        if isinstance(value, str):
+            return cls(key=int(value.split("/")[-1]), url=value)
+        raise TypeError(f"{value} is not int or str")
