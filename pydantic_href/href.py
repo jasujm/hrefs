@@ -1,9 +1,14 @@
 """Model references"""
 
+import typing
+
 import pydantic
 
 
-class Href:
+ModelType = typing.TypeVar("ModelType")
+
+
+class Href(typing.Generic[ModelType]):
     """Hypertext reference to another model
 
     Arguments:
@@ -11,7 +16,7 @@ class Href:
       url: the URL identifying the model externally (e.g. via REST API)
     """
 
-    def __init__(self, key: int, url: pydantic.AnyHttpUrl):
+    def __init__(self, key: int, url: str):
         self._key = key
         self._url = url
 
@@ -28,7 +33,7 @@ class Href:
         yield cls.validate
 
     @classmethod
-    def validate(cls, value):
+    def validate(cls, value: typing.Union[int, str], field: pydantic.fields.ModelField):
         """Validate reference
 
         A reference can either be parsed from key or URL.
@@ -40,8 +45,14 @@ class Href:
           A ``Href`` object referring to the model identified by the ``value``
           argument
         """
+        if not field.sub_fields:
+            raise TypeError("Expected model type as sub field")
+        model_type = field.sub_fields[0].type_
         if isinstance(value, int):
-            return cls(key=value, url=f"/{value}")
+            return cls(key=value, url=model_type.__key_to_url__(value))
         if isinstance(value, str):
-            return cls(key=int(value.split("/")[-1]), url=value)
+            return cls(
+                key=model_type.__url_to_key__(value),
+                url=value,
+            )
         raise TypeError(f"{value} is not int or str")
