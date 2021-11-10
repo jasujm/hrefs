@@ -16,6 +16,10 @@ dependencies = [
 [project.optional-dependencies]
 test = [
   "pytest>=6.2",
+  "hypothesis>=6.24",
+]
+
+dev = [
   "black",
   "pylint",
   "mypy"

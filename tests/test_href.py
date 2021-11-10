@@ -1,5 +1,6 @@
 import json
 
+from hypothesis import given, strategies as st
 import pydantic
 import pytest
 
@@ -26,28 +27,31 @@ class User(BaseModel):
     pet: Href[Pet]
 
 
-def test_parse_key_to_href():
-    user = User(pet=1)
-    assert user.pet.get_key() == 1
-    assert user.pet.get_url() == "/pets/1"
+@given(st.integers())
+def test_parse_key_to_href(key):
+    user = User(pet=key)
+    assert user.pet.get_key() == key
+    assert user.pet.get_url() == Pet.key_to_url(key)
 
 
-def test_parse_url_to_href():
-    user = User(pet="/pets/1")
-    assert user.pet.get_key() == 1
-    assert user.pet.get_url() == "/pets/1"
+@given(st.from_regex(r"\A/pets/\d+\Z"))
+def test_parse_url_to_key(url):
+    user = User(pet=url)
+    assert user.pet.get_key() == Pet.url_to_key(url)
+    assert user.pet.get_url() == url
 
 
-def test_parse_error():
+def test_href_definition_with_unparseable_key_fails():
     with pytest.raises(pydantic.ValidationError):
         User(pet=object())
 
 
-def test_invalid_href_definition():
+def test_href_definition_without_parameter_fails():
     with pytest.raises(pydantic.ValidationError):
         pydantic.parse_obj_as(Href, 123)
 
 
-def test_json_encode():
-    user_json = json.loads(User(pet=1).json())
-    assert user_json["pet"] == "/pets/1"
+@given(st.integers())
+def test_json_encode(key):
+    user_json = json.loads(User(pet=key).json())
+    assert user_json["pet"] == Pet.key_to_url(key)
