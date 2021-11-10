@@ -10,7 +10,7 @@ KeyType = typing.TypeVar("KeyType")
 UrlType = typing.TypeVar("UrlType")
 
 
-class HrefModel(typing_extensions.Protocol[KeyType, UrlType]):
+class ReferrableModel(typing_extensions.Protocol[KeyType, UrlType]):
     """Model that can be used as subject for `Href`"""
 
     @classmethod
@@ -29,10 +29,10 @@ class HrefModel(typing_extensions.Protocol[KeyType, UrlType]):
         raise NotImplementedError()
 
 
-ModelType = typing.TypeVar("ModelType", bound=HrefModel)
+ReferrableModelType = typing.TypeVar("ReferrableModelType", bound=ReferrableModel)
 
 
-class Href(typing.Generic[ModelType]):
+class Href(typing.Generic[ReferrableModelType]):
     """Hypertext reference to another model
 
     Arguments:
@@ -71,7 +71,7 @@ class Href(typing.Generic[ModelType]):
         """
         if not field.sub_fields:
             raise TypeError("Expected sub field")
-        model_type: ModelType = field.sub_fields[0].type_
+        model_type: ReferrableModelType = field.sub_fields[0].type_
         key_type, url_type = model_type.href_types()
         with contextlib.suppress(pydantic.ValidationError):
             key = pydantic.parse_obj_as(key_type, value)

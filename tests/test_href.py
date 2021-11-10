@@ -1,10 +1,12 @@
+import json
+
 import pydantic
 import pytest
 
-from pydantic_href import Href
+from pydantic_href import Href, BaseModel
 
 
-class Pet(pydantic.BaseModel):
+class Pet(BaseModel):
     id: int
 
     @staticmethod
@@ -20,7 +22,7 @@ class Pet(pydantic.BaseModel):
         return int(url.split("/")[-1])
 
 
-class User(pydantic.BaseModel):
+class User(BaseModel):
     pet: Href[Pet]
 
 
@@ -44,3 +46,8 @@ def test_parse_error():
 def test_invalid_href_definition():
     with pytest.raises(pydantic.ValidationError):
         pydantic.parse_obj_as(Href, 123)
+
+
+def test_json_encode():
+    user_json = json.loads(User(pet=1).json())
+    assert user_json["pet"] == "/pets/1"
