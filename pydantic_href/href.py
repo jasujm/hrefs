@@ -1,11 +1,35 @@
 """Model references"""
 
+import contextlib
 import typing
 
 import pydantic
+import typing_extensions
+
+KeyType = typing.TypeVar("KeyType")
+UrlType = typing.TypeVar("UrlType")
 
 
-ModelType = typing.TypeVar("ModelType")
+class HrefModel(typing_extensions.Protocol[KeyType, UrlType]):
+    """Model that can be used as subject for `Href`"""
+
+    @classmethod
+    def href_types(cls) -> typing.Tuple[typing.Type[KeyType], typing.Type[UrlType]]:
+        """Return a tuple containing the key and url types, respectively"""
+        raise NotImplementedError()
+
+    @classmethod
+    def key_to_url(cls, key: KeyType) -> UrlType:
+        """Convert key to url"""
+        raise NotImplementedError()
+
+    @classmethod
+    def url_to_key(cls, url: UrlType) -> KeyType:
+        """Convert url to key"""
+        raise NotImplementedError()
+
+
+ModelType = typing.TypeVar("ModelType", bound=HrefModel)
 
 
 class Href(typing.Generic[ModelType]):
@@ -16,7 +40,7 @@ class Href(typing.Generic[ModelType]):
       url: the URL identifying the model externally (e.g. via REST API)
     """
 
-    def __init__(self, key: int, url: str):
+    def __init__(self, key, url):
         self._key = key
         self._url = url
 
@@ -33,7 +57,7 @@ class Href(typing.Generic[ModelType]):
         yield cls.validate
 
     @classmethod
-    def validate(cls, value: typing.Union[int, str], field: pydantic.fields.ModelField):
+    def validate(cls, value, field: pydantic.fields.ModelField):
         """Validate reference
 
         A reference can either be parsed from key or URL.
@@ -46,13 +70,13 @@ class Href(typing.Generic[ModelType]):
           argument
         """
         if not field.sub_fields:
-            raise TypeError("Expected model type as sub field")
-        model_type = field.sub_fields[0].type_
-        if isinstance(value, int):
-            return cls(key=value, url=model_type.__key_to_url__(value))
-        if isinstance(value, str):
-            return cls(
-                key=model_type.__url_to_key__(value),
-                url=value,
-            )
-        raise TypeError(f"{value} is not int or str")
+            raise TypeError("Expected sub field")
+        model_type: ModelType = field.sub_fields[0].type_
+        key_type, url_type = model_type.href_types()
+        with contextlib.suppress(pydantic.ValidationError):
+            key = pydantic.parse_obj_as(key_type, value)
+            return cls(key=key, url=model_type.key_to_url(key))
+        with contextlib.suppress(pydantic.ValidationError):
+            url = pydantic.parse_obj_as(url_type, value)
+            return cls(key=model_type.url_to_key(url), url=url)
+        raise TypeError(f"Could not convert {value!r} to either key or url")
