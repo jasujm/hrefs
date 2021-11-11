@@ -38,11 +38,16 @@ class Href(typing.Generic[ReferrableModelType]):
     Arguments:
       key: the key used by the application to identify the model internally
       url: the URL identifying the model externally (e.g. via REST API)
+      target: The target type
     """
 
-    def __init__(self, key, url):
+    def __init__(self, key, url, target: typing.Type[ReferrableModelType]):
         self._key = key
         self._url = url
+        self._target = target
+
+    def __repr__(self):
+        return f"Href(key={self._key!r}, url={self._url!r}, target={self._target.__name__})"
 
     def get_key(self):
         """Return the key of the referred object"""
@@ -71,12 +76,15 @@ class Href(typing.Generic[ReferrableModelType]):
         """
         if not field.sub_fields:
             raise TypeError("Expected sub field")
-        model_type: ReferrableModelType = field.sub_fields[0].type_
+        model_type: typing.Type[ReferrableModelType] = field.sub_fields[0].type_
+        # pylint:disable=protected-access
+        if isinstance(value, cls) and value._target is model_type:
+            return value
         key_type, url_type = model_type.href_types()
         with contextlib.suppress(pydantic.ValidationError):
             key = pydantic.parse_obj_as(key_type, value)
-            return cls(key=key, url=model_type.key_to_url(key))
+            return cls(key=key, url=model_type.key_to_url(key), target=model_type)
         with contextlib.suppress(pydantic.ValidationError):
             url = pydantic.parse_obj_as(url_type, value)
-            return cls(key=model_type.url_to_key(url), url=url)
+            return cls(key=model_type.url_to_key(url), url=url, target=model_type)
         raise TypeError(f"Could not convert {value!r} to either key or url")
