@@ -41,6 +41,8 @@ class Href(typing.Generic[ReferrableModelType]):
       target: The target type
     """
 
+    __slots__ = ["_key", "_url", "_target"]
+
     def __init__(self, key, url, target: typing.Type[ReferrableModelType]):
         self._key = key
         self._url = url
