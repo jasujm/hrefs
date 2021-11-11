@@ -2,5 +2,5 @@
 
 __version__ = "0.1"
 
-from .href import ReferrableModel, Href
-from .model import BaseModel
+from .href import Href
+from .model import BaseModel, ReferrableModel

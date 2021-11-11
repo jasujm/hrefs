@@ -4,8 +4,7 @@ from hypothesis import given, strategies as st
 import pydantic
 import pytest
 
-from pydantic_href import Href, BaseModel
-from pydantic_href.abc import ReferrableModel
+from pydantic_href import Href, BaseModel, ReferrableModel
 
 
 class Pet(ReferrableModel):
@@ -29,6 +28,18 @@ hrefs = st.integers().map(
 )
 
 
+@given(hrefs)
+def test_parse_href(href):
+    assert Owner(pet=href).pet is href
+
+
+@given(st.builds(Pet))
+def test_parse_referrable_model(pet):
+    owner = Owner(pet=pet)
+    assert owner.pet.get_key() == pet.id
+    assert owner.pet.get_url() == Pet.key_to_url(pet.id)
+
+
 @given(st.integers())
 def test_parse_key_to_href(key):
     owner = Owner(pet=key)
@@ -41,11 +52,6 @@ def test_parse_url_to_key(url):
     owner = Owner(pet=url)
     assert owner.pet.get_key() == Pet.url_to_key(url)
     assert owner.pet.get_url() == url
-
-
-@given(hrefs)
-def test_parse_href(href):
-    assert Owner(pet=href).pet is href
 
 
 def test_parse_href_with_unparseable_key_fails():
