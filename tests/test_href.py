@@ -5,14 +5,11 @@ import pydantic
 import pytest
 
 from pydantic_href import Href, BaseModel
+from pydantic_href.abc import ReferrableModel
 
 
-class Pet(BaseModel):
+class Pet(ReferrableModel):
     id: int
-
-    @staticmethod
-    def href_types():
-        return int, str
 
     @staticmethod
     def key_to_url(key: int) -> str:
