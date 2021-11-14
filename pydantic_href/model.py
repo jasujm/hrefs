@@ -1,24 +1,18 @@
 """Base models for referring and referrable types"""
 
-import abc
-import inspect
 import typing
 
 import pydantic
 
-from .href import Href
-
-
-def _extract_type(meth: typing.Callable) -> typing.Type:
-    return_annotation = inspect.signature(meth).return_annotation
-    assert (
-        return_annotation != inspect.Signature.empty
-    ), f"return annotation of {meth!r} unexpectedly empty"
-    return return_annotation
+from .href import Href, Referrable
 
 
 class BaseModel(pydantic.BaseModel):
-    """Pydantic model using href features"""
+    """Pydantic model using href features
+
+    `BaseModel` ensures that models is using custom JSON encoder that serializes
+    `Href` fields into URLs.
+    """
 
     class Config:
         """Common model configuration"""
@@ -26,37 +20,24 @@ class BaseModel(pydantic.BaseModel):
         json_encoders = {Href: lambda h: h.get_url()}
 
 
-class ReferrableModel(BaseModel, abc.ABC):
-    """Stub implementation of the `href.ReferrableModel` protocol
+if typing.TYPE_CHECKING:
+    # `mypy` doesn't accept the true metaclass. should be investigated later.
+    class ReferrableModel(BaseModel, Referrable):
+        """Dummy"""
 
-    The abstract base implements `href_types()` which works by inferring the
-    return type from annotations.
+else:
+    # pylint: disable-all
+    class _ReferrableModelMeta(BaseModel.__class__, Referrable.__class__):
+        pass
 
-    The abstract base implements `get_key()` which works by returning the `id`
-    property that the class is expected to have. Having `id` property is
-    optional, and a subclass may override `get_key()` instead.
+    class ReferrableModel(BaseModel, Referrable, metaclass=_ReferrableModelMeta):
+        """Referrable model with pydantic integration
 
-    The subclass needs to implement `key_to_url()` and `url_to_key()`, and
-    annotate their return type accordingly.
-    """
+        This is an abstract base class that inherits both `BaseModel` and
+        (partially) implements the `Referrable` protocol. The subclass needs to
+        implement `key_to_url()` and `url_to_key()` as described in the
+        documentation of `Referrable`.
 
-    def get_key(self):
-        """Return the `id` property of the model"""
-        return getattr(self, "id")
-
-    @classmethod
-    def href_types(cls):
-        """Return a tuple containing the key and url types, respectively"""
-        return _extract_type(cls.url_to_key), _extract_type(cls.key_to_url)
-
-    @classmethod
-    @abc.abstractmethod
-    def key_to_url(cls, key):
-        """Convert key to url"""
-        raise NotImplementedError()
-
-    @classmethod
-    @abc.abstractmethod
-    def url_to_key(cls, url):
-        """Convert url to key"""
-        raise NotImplementedError()
+        `ReferrableModel` inherits `href.BaseModel`, ensuring that the custom
+        `Href` `json_encoder` is used to serialize references.
+        """

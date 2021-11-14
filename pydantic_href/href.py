@@ -1,6 +1,8 @@
 """Model references"""
 
+import abc
 import contextlib
+import inspect
 import typing
 
 import pydantic
@@ -10,33 +12,57 @@ KeyType = typing.TypeVar("KeyType")
 UrlType = typing.TypeVar("UrlType")
 
 
-class ReferrableModel(typing_extensions.Protocol[KeyType, UrlType]):
-    """Model that can be used as subject for `Href`"""
+def _extract_type(meth: typing.Callable) -> typing.Type:
+    return_annotation = inspect.signature(meth).return_annotation
+    assert (
+        return_annotation != inspect.Signature.empty
+    ), f"return annotation of {meth!r} unexpectedly empty"
+    return return_annotation
+
+
+class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
+    """Protocol that needs to be implemented by a subject of `Href`
+
+    `Referrable` also acts as an ABC. The subclass needs to implement at least
+    `key_to_url()` and `url_to_key()` to be able to convert between key and url
+    representstions. The return type of these function need to be annotated
+    appropriately to exploit the default implementation of `href_types()`.
+
+    The abstract base implements `href_types()` which works by inferring the
+    return type from annotations.
+
+    The abstract base implements `get_key()` which works by returning the `id`
+    property that the class is expected to have. Having `id` property is
+    optional, and a subclass may override `get_key()` instead.
+
+    """
 
     def get_key(self) -> KeyType:
         """Return the key of the model"""
-        raise NotImplementedError()
+        return getattr(self, "id")
 
     @classmethod
     def href_types(cls) -> typing.Tuple[typing.Type[KeyType], typing.Type[UrlType]]:
         """Return a tuple containing the key and url types, respectively"""
-        raise NotImplementedError()
+        return _extract_type(cls.url_to_key), _extract_type(cls.key_to_url)
 
     @classmethod
+    @abc.abstractmethod
     def key_to_url(cls, key: KeyType) -> UrlType:
         """Convert key to url"""
         raise NotImplementedError()
 
     @classmethod
+    @abc.abstractmethod
     def url_to_key(cls, url: UrlType) -> KeyType:
         """Convert url to key"""
         raise NotImplementedError()
 
 
-ReferrableModelType = typing.TypeVar("ReferrableModelType", bound=ReferrableModel)
+ReferrableType = typing.TypeVar("ReferrableType", bound=Referrable)
 
 
-class Href(typing.Generic[ReferrableModelType]):
+class Href(typing.Generic[ReferrableType]):
     """Hypertext reference to another model
 
     Arguments:
@@ -47,7 +73,7 @@ class Href(typing.Generic[ReferrableModelType]):
 
     __slots__ = ["_key", "_url", "_target"]
 
-    def __init__(self, key, url, target: typing.Type[ReferrableModelType]):
+    def __init__(self, key, url, target: typing.Type[ReferrableType]):
         self._key = key
         self._url = url
         self._target = target
@@ -81,7 +107,7 @@ class Href(typing.Generic[ReferrableModelType]):
         """
         if not field.sub_fields:
             raise TypeError("Expected sub field")
-        model_type: typing.Type[ReferrableModelType] = field.sub_fields[0].type_
+        model_type: typing.Type[ReferrableType] = field.sub_fields[0].type_
         # pylint:disable=protected-access
         if isinstance(value, cls) and value._target is model_type:
             return value
@@ -98,9 +124,9 @@ class Href(typing.Generic[ReferrableModelType]):
         raise TypeError(f"Could not convert {value!r} to either key or url")
 
     @classmethod
-    def _from_key(cls, key: KeyType, model_type: typing.Type[ReferrableModelType]):
+    def _from_key(cls, key: KeyType, model_type: typing.Type[ReferrableType]):
         return cls(key=key, url=model_type.key_to_url(key), target=model_type)
 
     @classmethod
-    def _from_url(cls, url: UrlType, model_type: typing.Type[ReferrableModelType]):
+    def _from_url(cls, url: UrlType, model_type: typing.Type[ReferrableType]):
         return cls(key=model_type.url_to_key(url), url=url, target=model_type)

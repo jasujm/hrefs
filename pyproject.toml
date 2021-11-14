@@ -22,7 +22,7 @@ test = [
 dev = [
   "black",
   "pylint",
-  "mypy"
+  "mypy",
 ]
 
 [project.urls]
