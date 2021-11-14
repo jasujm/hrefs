@@ -109,7 +109,7 @@ class Href(typing.Generic[ReferrableType]):
             raise TypeError("Expected sub field")
         model_type: typing.Type[ReferrableType] = field.sub_fields[0].type_
         # pylint:disable=protected-access
-        if isinstance(value, cls) and value._target is model_type:
+        if isinstance(value, cls):
             return value
         if isinstance(value, model_type):
             key = value.get_key()

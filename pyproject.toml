@@ -10,13 +10,15 @@ dynamic = ["version", "description"]
 requires-python=">=3.7"
 
 dependencies = [
-  "pydantic>=1.7"
+  "pydantic>=1.7",
+  "starlette"
 ]
 
 [project.optional-dependencies]
 test = [
   "pytest>=6.2",
   "hypothesis>=6.24",
+  "fastapi"
 ]
 
 dev = [

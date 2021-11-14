@@ -25,6 +25,7 @@ if typing.TYPE_CHECKING:
     class ReferrableModel(BaseModel, Referrable):
         """Dummy"""
 
+
 else:
     # pylint: disable-all
     class _ReferrableModelMeta(BaseModel.__class__, Referrable.__class__):

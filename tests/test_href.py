@@ -6,6 +6,7 @@ import pydantic
 import pytest
 
 from pydantic_href import Href, BaseModel, ReferrableModel
+from util import hrefs
 
 
 class Pet(ReferrableModel):
@@ -24,12 +25,10 @@ class Owner(BaseModel):
     pets: typing.List[Href[Pet]]
 
 
-hrefs = st.integers().map(
-    lambda key: Href(key=key, url=Pet.key_to_url(key), target=Pet)
-)
+pet_hrefs = hrefs(Pet, st.integers())
 
 
-@given(hrefs)
+@given(pet_hrefs)
 def test_parse_href(href):
     assert pydantic.parse_obj_as(Href[Pet], href) is href
 
@@ -65,7 +64,7 @@ def test_parse_href_without_parameter_fails():
         pydantic.parse_obj_as(Href, 123)
 
 
-@given(st.builds(Owner, pets=st.lists(hrefs)))
+@given(st.builds(Owner, pets=st.lists(pet_hrefs)))
 def test_json_encode(owner):
     owner_json = json.loads(owner.json())
     assert owner_json["pets"] == [pet.get_url() for pet in owner.pets]
