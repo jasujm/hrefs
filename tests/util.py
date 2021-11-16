@@ -2,7 +2,7 @@
 
 import typing
 
-from pydantic_href import Href, Referrable
+from hrefs import Href, Referrable
 
 from hypothesis import strategies as st
 

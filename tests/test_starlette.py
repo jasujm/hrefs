@@ -10,8 +10,8 @@ import fastapi.testclient
 from hypothesis import given, strategies as st
 import pydantic
 
-from pydantic_href import Href, BaseModel
-from pydantic_href.starlette import ReferrableStarletteModel, HrefMiddleware
+from hrefs import Href, BaseModel
+from hrefs.starlette import ReferrableStarletteModel, HrefMiddleware
 
 
 class Comment(ReferrableStarletteModel):

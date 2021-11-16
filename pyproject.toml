@@ -3,7 +3,7 @@ requires = ["flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "pydantic_href"
+name = "hrefs"
 authors = [{name = "Jaakko Moisio", email = "jaakko@moisio.fi"}]
 classifiers = ["License :: OSI Approved :: MIT License"]
 dynamic = ["version", "description"]
@@ -28,4 +28,4 @@ dev = [
 ]
 
 [project.urls]
-Home = "https://github.com/jasujm/pydantic-href"
+Home = "https://github.com/jasujm/hrefs"

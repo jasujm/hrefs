@@ -5,7 +5,7 @@ from hypothesis import given, strategies as st
 import pydantic
 import pytest
 
-from pydantic_href import Href, BaseModel, ReferrableModel
+from hrefs import Href, BaseModel, ReferrableModel
 from util import hrefs
 
 
