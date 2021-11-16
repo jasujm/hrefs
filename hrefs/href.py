@@ -21,29 +21,53 @@ def _extract_type(meth: typing.Callable) -> typing.Type:
 
 
 class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
-    """Protocol that needs to be implemented by a subject of `Href`
+    """Protocol that needs to be implemented by a target of :class:`Href`
 
-    `Referrable` also acts as an ABC. The subclass needs to implement at least
-    `key_to_url()` and `url_to_key()` to be able to convert between key and url
-    representstions. The return type of these function need to be annotated
-    appropriately to exploit the default implementation of `href_types()`.
+    The class can either be used as a protocol (see `PEP 544
+    <https://www.python.org/dev/peps/pep-0544/>`_).
 
-    The abstract base implements `href_types()` which works by inferring the
-    return type from annotations.
+    * When used as protocol in type annotations, :class:`Referrable` is
+      parametrized by key and URL types, respectively. For example
+      ``Referrable[int, str]`` annotates a referrable type having ``int`` as key
+      and ``str`` as URL. ``Referrable[UUID, AnyHttpUrl]`` annotates a
+      referrable type having ``UUID`` key and ``AnyHttpUrl`` as URL type.
 
-    The abstract base implements `get_key()` which works by returning the `id`
-    property that the class is expected to have. Having `id` property is
-    optional, and a subclass may override `get_key()` instead.
+    * When used as abstract base class, the subclass needs to implement at least
+      :func:`key_to_url()` and :func:`url_to_key()` to specify the conversions
+      between the key and URL representations. The return types of the functions
+      should be annotated to make them available for parsing and serialization
+      at runtime. Moreover, the default implementation assumes that the has
+      ``id`` property used as the key of the referrable. Here is an example:
+
+      .. code-block:: python
+
+         class Book(Referrable):
+             id: int
+
+             @classmethod
+             def key_to_url(key: int) -> str:
+                 return f"/books/{key}"
+
+             @classmethod
+             def url_to_key(url: str) -> int:
+                 return url.split("/")[-1]
 
     """
 
     def get_key(self) -> KeyType:
-        """Return the key of the model"""
+        """Return the key of the model
+
+        The default implementation returns the ``id`` property of the object.
+        """
         return getattr(self, "id")
 
     @classmethod
     def href_types(cls) -> typing.Tuple[typing.Type[KeyType], typing.Type[UrlType]]:
-        """Return a tuple containing the key and url types, respectively"""
+        """Return a tuple containing the key and url types, respectively
+
+        The default implementation returns the return type annotations of
+        :func:`url_to_key()` and :func:`key_to_url()`, respectively.
+        """
         return _extract_type(cls.url_to_key), _extract_type(cls.key_to_url)
 
     @classmethod
@@ -65,15 +89,24 @@ ReferrableType = typing.TypeVar("ReferrableType", bound=Referrable)
 class Href(typing.Generic[ReferrableType]):
     """Hypertext reference to another model
 
-    Arguments:
-      key: the key used by the application to identify the model internally
-      url: the URL identifying the model externally (e.g. via REST API)
-      target: The target type
+    The class is generic and can be annotated by a type implementing the
+    :class:`Referrable` protocol. If ``Book`` is assumed to be a type
+    implementing :class:`Referrable`, then ``Href[Book]`` represents a hyperlink
+    to a book. This mechanism primarily exists for the benefit of pydantic, and
+    allows the validation to know what kind of reference it is working with (see
+    :ref:`quickstart`).
+
     """
 
     __slots__ = ["_key", "_url", "_target"]
 
     def __init__(self, key, url, target: typing.Type[ReferrableType]):
+        """
+        Arguments:
+          key: the key used by the application to identify the model internally
+          url: the URL identifying the model externally (e.g. via REST API)
+          target: The target type
+        """
         self._key = key
         self._url = url
         self._target = target
@@ -95,20 +128,34 @@ class Href(typing.Generic[ReferrableType]):
 
     @classmethod
     def validate(cls, value, field: pydantic.fields.ModelField):
-        """Validate reference
+        """Parse ``value`` into hyperlink
+
+        This method mainly exists for integration to pydantic. A user rarely
+        needs to call it directly.
 
         Arguments:
-          value: Parsed object. Can be either key, url, an instance of the target type
-                 or a `Href` object with compatible target type.
+          value:
 
-        Return:
-          A `Href` object referring to the model identified by the `value`
-          argument
+            The parsed object. It can be either:
+
+            * Another :class:`Href` instance
+            * An instance of the referred model
+            * A value of the key type (interpreted as key identifying the referred object)
+            * A url string (interpreted as URL to the referred objet)
+
+        Returns:
+          A :class:`Href` object referring the model identified by the ``value``
+          argument.
+
+        Raises:
+          TypeError: If the :class:`Href` model isn't properly annotated, or if
+            ``value`` doesn't conform to any of the recognized types
+          Exception: In addition passes any exceptions happening during conversions
+
         """
         if not field.sub_fields:
             raise TypeError("Expected sub field")
         model_type: typing.Type[ReferrableType] = field.sub_fields[0].type_
-        # pylint:disable=protected-access
         if isinstance(value, cls):
             return value
         if isinstance(value, model_type):

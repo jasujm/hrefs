@@ -8,10 +8,11 @@ from .href import Href, Referrable
 
 
 class BaseModel(pydantic.BaseModel):
-    """Pydantic model using href features
+    """pydantic model with href support
 
-    `BaseModel` ensures that models is using custom JSON encoder that serializes
-    `Href` fields into URLs.
+    This is a simple subclass of :class:`pydantic.BaseModel`. It is almost
+    identical to its base class, but adds a custom JSON encoder to serialize
+    :class:`hrefs.Href` objects into URLs.
     """
 
     class Config:
@@ -34,11 +35,10 @@ else:
     class ReferrableModel(BaseModel, Referrable, metaclass=_ReferrableModelMeta):
         """Referrable model with pydantic integration
 
-        This is an abstract base class that inherits both `BaseModel` and
-        (partially) implements the `Referrable` protocol. The subclass needs to
-        implement `key_to_url()` and `url_to_key()` as described in the
-        documentation of `Referrable`.
+        A subclass of both :class:`hrefs.BaseModel` and
+        :class:`hrefs.Referrable`.  It should be used as the base class of any
+        pydantic model that will be used as target of :class:`hrefs.Href`.
 
-        `ReferrableModel` inherits `href.BaseModel`, ensuring that the custom
-        `Href` `json_encoder` is used to serialize references.
+        When using referrable models with FastAPI or Starlette in particular,
+        :class:`hrefs.starlette.ReferrableStarletteModel` is more natural base.
         """

@@ -15,10 +15,10 @@ _request_var: contextvars.ContextVar[
 
 
 class HrefMiddleware(starlette.middleware.base.BaseHTTPMiddleware):
-    """Middleware
+    """Middleware for resolving hrefs
 
-    An instance of this middleware needs to be added to an Starlette app that
-    uses models with `Href` fields.
+    This middleware needs to be added to the middleware stack of the Starlette
+    app using the :class:`ReferrableStarletteModel`.
     """
 
     @staticmethod
@@ -30,15 +30,33 @@ class HrefMiddleware(starlette.middleware.base.BaseHTTPMiddleware):
 class ReferrableStarletteModel(ReferrableModel):
     """Referrable model with Starlette integration
 
-    The model assumes there is a route acting as the view for this model
-    type. The key of the model instance is encoded as the `id` path parameter of
-    the route. The view is specified as using the model `Config` class.
+    This class implements the :class:`hrefs.ReferrableModel` with the following
+    features:
+
+    * Its key type is inferred from the ``id`` field of the subclass
+
+    * Its URL type is always :class:`pydantic.AnyHttpUrl`
+
+    * When converting between key and URL, it relies on the Starlette request
+      objects. Thus a :class:`ReferrableStarletteModel` is only usable within
+      request handlers or middleware above the :class:`HrefMiddleware` in the
+      middleware stack of the application.
+
+    Here is a minimal example of a model having key type ``int`` (inferred from
+    the ``id`` property), and using route called ``"my_view"`` to convert
+    to/from URLs.
+
+    .. code-block:: python
 
         class MyModel(ReferrableStarletteModel):
             id: int
 
             class Config:
                 default_view = "my_view"
+
+    For a more complete example of using :mod:`hrefs` library with Starlette,
+    please refer to :ref:`quickstart`.
+
     """
 
     @classmethod

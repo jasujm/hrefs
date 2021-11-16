@@ -27,5 +27,10 @@ dev = [
   "mypy",
 ]
 
+docs = [
+  "sphinx",
+  "sphinx-rtd-theme",
+]
+
 [project.urls]
 Home = "https://github.com/jasujm/hrefs"

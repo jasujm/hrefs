@@ -48,7 +48,7 @@ async def get_article(id: uuid.UUID):
 
 
 @app.post("/articles")
-async def put_article(article: Article):
+async def post_article(article: Article):
     save_article = save_article_var.get()
     save_article(article)
 
