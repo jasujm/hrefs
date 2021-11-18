@@ -23,7 +23,7 @@ class BaseModel(pydantic.BaseModel):
 
 if typing.TYPE_CHECKING:
     # `mypy` doesn't accept the true metaclass. should be investigated later.
-    class ReferrableModel(BaseModel, Referrable):
+    class BaseReferrableModel(BaseModel, Referrable):
         """Dummy"""
 
 
@@ -32,7 +32,7 @@ else:
     class _ReferrableModelMeta(BaseModel.__class__, Referrable.__class__):
         pass
 
-    class ReferrableModel(BaseModel, Referrable, metaclass=_ReferrableModelMeta):
+    class BaseReferrableModel(BaseModel, Referrable, metaclass=_ReferrableModelMeta):
         """Referrable model with pydantic integration
 
         A subclass of both :class:`hrefs.BaseModel` and
@@ -40,5 +40,5 @@ else:
         pydantic model that will be used as target of :class:`hrefs.Href`.
 
         When using referrable models with FastAPI or Starlette in particular,
-        :class:`hrefs.starlette.ReferrableStarletteModel` is more natural base.
+        :class:`hrefs.starlette.ReferrableModel` is more natural base.
         """

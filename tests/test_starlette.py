@@ -11,10 +11,10 @@ from hypothesis import given, strategies as st
 import pydantic
 
 from hrefs import Href, BaseModel
-from hrefs.starlette import ReferrableStarletteModel, HrefMiddleware
+from hrefs.starlette import ReferrableModel, HrefMiddleware
 
 
-class Comment(ReferrableStarletteModel):
+class Comment(ReferrableModel):
     id: uuid.UUID
 
     class Config:

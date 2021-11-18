@@ -5,11 +5,11 @@ from hypothesis import given, strategies as st
 import pydantic
 import pytest
 
-from hrefs import Href, BaseModel, ReferrableModel
+from hrefs import Href, BaseModel, BaseReferrableModel
 from util import hrefs
 
 
-class Pet(ReferrableModel):
+class Pet(BaseReferrableModel):
     id: int
 
     @staticmethod

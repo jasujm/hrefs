@@ -33,7 +33,7 @@ also a subclass of :class:`BaseModel`, so no need to inherit both!
 
 .. autoclass:: BaseModel
 
-.. autoclass:: ReferrableModel
+.. autoclass:: BaseReferrableModel
 
 Starlette integration
 ---------------------
@@ -47,4 +47,4 @@ working example how to use these classes.
 
 .. autoclass:: HrefMiddleware
 
-.. autoclass:: ReferrableStarletteModel
+.. autoclass:: ReferrableModel

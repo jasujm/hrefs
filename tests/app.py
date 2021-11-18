@@ -4,10 +4,10 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware import Middleware
 
 from hrefs import BaseModel, Href
-from hrefs.starlette import ReferrableStarletteModel, HrefMiddleware
+from hrefs.starlette import ReferrableModel, HrefMiddleware
 
 
-class Book(ReferrableStarletteModel):
+class Book(ReferrableModel):
     id: int
     title: str
 

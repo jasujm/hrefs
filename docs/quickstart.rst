@@ -26,9 +26,9 @@ Defining a referrable model
 
 .. code-block:: python
 
-   from hrefs.starlette import ReferrableStarletteModel
+   from hrefs.starlette import ReferrableModel
 
-   class Book(ReferrableStarletteModel):
+   class Book(ReferrableModel):
        id: int
        title: str
 
@@ -44,7 +44,7 @@ Defining a referrable model
 
 To make a model target for hrefs, it needs to:
 
-* Inherit from :class:`hrefs.starlette.ReferrableStarletteModel`.
+* Inherit from :class:`hrefs.starlette.ReferrableModel`.
 
 * Have configuration called ``default_view`` naming the route that will return
   the canonical representation of the referrable model. The URLs will be derived
@@ -182,7 +182,7 @@ mind, the integration doesn't actually depend on FastAPI, only `pydantic
 <https://www.starlette.io/>`_. You can perfectly well write Starlette apps
 containing hrefs. You just need to ensure that:
 
-* For each :class:`hrefs.starlette.ReferrableStarletteModel` there is a named
+* For each :class:`hrefs.starlette.ReferrableModel` there is a named
   route matching the ``default_view`` configuration.
 
 * The :class:`HrefMiddleware` is added as middleware to the application.
@@ -195,4 +195,5 @@ Writing a custom integration
 
 The :class:`hrefs.Href` class can refer to any type implementing the
 :class:`hrefs.Referrable` protocol. You can also use the
-:class:`hrefs.ReferrableModel` ABC to get part of the implementation for free.
+:class:`hrefs.BaseReferrableModel` ABC to get part of the implementation for
+free.
