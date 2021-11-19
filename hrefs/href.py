@@ -98,28 +98,28 @@ class Href(typing.Generic[ReferrableType]):
 
     """
 
-    __slots__ = ["_key", "_url", "_target"]
+    __slots__ = ["_key", "_url"]
 
-    def __init__(self, key, url, target: typing.Type[ReferrableType]):
+    def __init__(self, key, url):
         """
         Arguments:
           key: the key used by the application to identify the model internally
           url: the URL identifying the model externally (e.g. via REST API)
-          target: The target type
         """
         self._key = key
         self._url = url
-        self._target = target
 
     def __repr__(self):
-        return f"Href(key={self._key!r}, url={self._url!r}, target={self._target.__name__})"
+        return f"Href(key={self._key!r}, url={self._url!r})"
 
-    def get_key(self):
-        """Return the key of the referred object"""
+    @property
+    def key(self):
+        """The key of the referred object"""
         return self._key
 
-    def get_url(self):
-        """Return the URL of the referred object"""
+    @property
+    def url(self):
+        """The URL of the referred object"""
         return self._url
 
     @classmethod
@@ -172,8 +172,8 @@ class Href(typing.Generic[ReferrableType]):
 
     @classmethod
     def _from_key(cls, key: KeyType, model_type: typing.Type[ReferrableType]):
-        return cls(key=key, url=model_type.key_to_url(key), target=model_type)
+        return cls(key=key, url=model_type.key_to_url(key))
 
     @classmethod
     def _from_url(cls, url: UrlType, model_type: typing.Type[ReferrableType]):
-        return cls(key=model_type.url_to_key(url), url=url, target=model_type)
+        return cls(key=model_type.url_to_key(url), url=url)

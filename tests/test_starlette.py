@@ -81,7 +81,7 @@ def test_parse_url_to_href(article_id, comment_ids):
     def assert_article(article: Article):
         assert article.id == article_id
         assert [
-            comment_href.get_key() for comment_href in article.comments
+            comment_href.key for comment_href in article.comments
         ] == comment_ids
 
     save_article_var.set(assert_article)

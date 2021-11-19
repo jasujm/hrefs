@@ -1,5 +1,6 @@
 """Base models for referring and referrable types"""
 
+import operator
 import typing
 
 import pydantic
@@ -18,7 +19,7 @@ class BaseModel(pydantic.BaseModel):
     class Config:
         """Common model configuration"""
 
-        json_encoders = {Href: lambda h: h.get_url()}
+        json_encoders = {Href: operator.attrgetter("url")}
 
 
 if typing.TYPE_CHECKING:
