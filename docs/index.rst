@@ -24,9 +24,10 @@ API reference
 
    api
 
-Indices and tables
-==================
+History
+=======
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. toctree::
+   :maxdepth: 2
+
+   changelog
