@@ -83,13 +83,16 @@ Defining a relationship to the referrable model
        return library
 
    @app.post("/libraries")
-   def post_library(library: Library, request: Request, response: Response):
+   def post_library(library: Library, request: Request):
        if any(book.get_key() not in books for book in library.books):
            raise HTTPException(
                status_code=400, detail="Trying to add nonexisting book to library"
            )
        libraries[library.id] = library
-       response.headers["Location"] = request.url_for("get_library", id=library.id)
+       return Response(
+           status_code=201,
+           headers={"Location": request.url_for("get_library", id=library.id)},
+       )
 
 .. note::
 
@@ -98,9 +101,8 @@ Defining a relationship to the referrable model
    configures to use a custom JSON encoder that knows how to handle
    :class:`hrefs.Href` objects.
 
-An annotated type ``Href[Book]`` is used to declare a hypertext reference to
-``Book`` --- or any other subclass of :class:`hrefs.ReferrableModel` for that
-matter!
+An annotated type ``Href[Book]`` is used to declare a hyperlink to ``Book`` ---
+or any other subclass of :class:`hrefs.ReferrableModel` for that matter!
 
 The :class:`hrefs.Href` class integrates to `pydantic
 <https://pydantic-docs.helpmanual.io/>`_. When parsing the ``books`` field (or

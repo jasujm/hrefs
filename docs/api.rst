@@ -26,10 +26,10 @@ Pydantic models
 
 The library provides two mixins that make writing `pydantic
 <https://pydantic-docs.helpmanual.io/>`_ models using :mod:`hrefs`
-easier. Generally any model using hypertext references should be a subclass of
-:class:`BaseModel`. Any model that is also a target of hypertext references
-should implement :class:`BaseReferrableModel`. :class:`BaseReferrableModel` is
-also a subclass of :class:`BaseModel`, so no need to inherit both!
+easier. Generally any model using :class:`Href` fields should be a subclass of
+:class:`BaseModel`. Any model that is also a target of hyperlinks should
+implement :class:`BaseReferrableModel`. :class:`BaseReferrableModel` is also a
+subclass of :class:`BaseModel`, so no need to inherit both!
 
 .. autoclass:: BaseModel
 
