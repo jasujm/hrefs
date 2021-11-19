@@ -18,7 +18,7 @@ class Comment(ReferrableModel):
     id: uuid.UUID
 
     class Config:
-        default_view = "get_comment"
+        details_view = "get_comment"
 
 
 class Article(BaseModel):

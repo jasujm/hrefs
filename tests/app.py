@@ -12,7 +12,7 @@ class Book(ReferrableModel):
     title: str
 
     class Config:
-        default_view = "get_book"
+        details_view = "get_book"
 
 
 class Library(BaseModel):

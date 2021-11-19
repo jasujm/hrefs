@@ -18,7 +18,7 @@ and URLs:
        id: int
 
        class Config:
-           default_view = "get_book"
+           details_view = "get_book"
 
    class Library(BaseModel):
        books: List[Href[Book]]

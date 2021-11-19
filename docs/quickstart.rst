@@ -33,7 +33,7 @@ Defining a referrable model
        title: str
 
        class Config:
-           default_view = "get_book"
+           details_view = "get_book"
 
    @app.get("/books/{id}", response_model=Book)
    def get_book(id: int):
@@ -46,9 +46,9 @@ To make a model target for hrefs, it needs to:
 
 * Inherit from :class:`hrefs.starlette.ReferrableModel`.
 
-* Have configuration called ``default_view`` naming the route that will return
-  the canonical representation of the referrable model. The URLs will be derived
-  from the path of that view plus the identity of the model.
+* Have configuration called ``details_view`` naming the route that will return
+  the details of the referrable model. The URLs will be derived from the path of
+  that view plus the identity of the model.
 
 .. note::
 
@@ -114,7 +114,7 @@ instances:
 * A value convertible to the ``id`` type of the referred object (in this case
   ``int``).
 
-* A URL that can be matched to the route named in the ``default_view`` of the
+* A URL that can be matched to the route named in the ``details_view`` of the
   referred object type (in this case ``"get_library"``).
 
 When serializing :class:`hrefs.Href` objects to JSON (FastAPI serializes the
@@ -183,7 +183,7 @@ mind, the integration doesn't actually depend on FastAPI, only `pydantic
 containing hrefs. You just need to ensure that:
 
 * For each :class:`hrefs.starlette.ReferrableModel` there is a named
-  route matching the ``default_view`` configuration.
+  route matching the ``details_view`` configuration.
 
 * The :class:`HrefMiddleware` is added as middleware to the application.
 

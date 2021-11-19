@@ -52,7 +52,7 @@ class ReferrableModel(BaseReferrableModel):
             id: int
 
             class Config:
-                default_view = "my_view"
+                details_view = "my_view"
 
     For a more complete example of using :mod:`hrefs` library with Starlette,
     please refer to :ref:`quickstart`.
@@ -66,17 +66,17 @@ class ReferrableModel(BaseReferrableModel):
     @classmethod
     def key_to_url(cls, key):
         request = _request_var.get()
-        default_view = cls._get_default_view()
+        details_view = cls._get_details_view()
         return pydantic.parse_obj_as(
-            pydantic.AnyHttpUrl, request.url_for(default_view, id=key)
+            pydantic.AnyHttpUrl, request.url_for(details_view, id=key)
         )
 
     @classmethod
     def url_to_key(cls, url: pydantic.AnyHttpUrl):
         request = _request_var.get()
-        default_view = cls._get_default_view()
+        details_view = cls._get_details_view()
         for route in request.app.routes:
-            if route.name == default_view:
+            if route.name == details_view:
                 _, scope = route.matches(
                     {"type": "http", "method": "GET", "path": url.path}
                 )
@@ -91,5 +91,5 @@ class ReferrableModel(BaseReferrableModel):
         return cls.__fields__["id"].type_
 
     @classmethod
-    def _get_default_view(cls):
-        return getattr(cls.__config__, "default_view")
+    def _get_details_view(cls):
+        return getattr(cls.__config__, "details_view")
