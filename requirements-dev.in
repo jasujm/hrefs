@@ -1,0 +1,6 @@
+pytest>=6.2
+hypothesis>=6.24
+fastapi==0.70.0
+black
+pylint
+mypy

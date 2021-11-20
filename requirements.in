@@ -1,0 +1,5 @@
+# for RTD
+pydantic>=1.7
+starlette==0.16.0
+sphinx
+sphinx-rtd-theme
