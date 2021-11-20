@@ -5,14 +5,31 @@ build-backend = "flit_core.buildapi"
 [project]
 name = "hrefs"
 authors = [{name = "Jaakko Moisio", email = "jaakko@moisio.fi"}]
-classifiers = ["License :: OSI Approved :: MIT License"]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Environment :: Web Environment",
+  "Framework :: FastAPI",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Topic :: Internet",
+  "Topic :: Internet :: WWW/HTTP",
+  "Topic :: Software Development",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+license = {file = "LICENSE"}
+readme = "README.rst"
 dynamic = ["version", "description"]
-requires-python=">=3.7"
-
 dependencies = [
   "pydantic>=1.7",
   "starlette"
 ]
+requires-python=">=3.7"
 
 [project.optional-dependencies]
 test = [

@@ -1,3 +1,12 @@
+Version 0.1.2
+-------------
+
+Date
+  2021-11-20
+
+Added
+  * More project metadata
+
 Version 0.1.1
 -------------
 

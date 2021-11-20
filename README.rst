@@ -29,11 +29,11 @@ and URLs:
        # {"books":["http://example.com/books/1","http://example.com/books/2","http://example.com/books/3"]}
        return Library(books=[1,2,3]).json()
 
-
-
 ``hrefs`` was written especially with `FastAPI <https://fastapi.tiangolo.com/>`_
 in mind, but integrates to any application or framework using pydantic to parse
 and serialize models.
+
+Check out the `documentation <https://hrefs.readthedocs.io/>`_ to get started!
 
 Installation
 ------------
