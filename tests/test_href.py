@@ -5,7 +5,7 @@ from hypothesis import given, strategies as st
 import pydantic
 import pytest
 
-from hrefs import Href, BaseModel, BaseReferrableModel
+from hrefs import Href, BaseReferrableModel
 from util import hrefs
 
 
@@ -21,7 +21,7 @@ class Pet(BaseReferrableModel):
         return int(url.split("/")[-1])
 
 
-class Owner(BaseModel):
+class Owner(pydantic.BaseModel):
     pets: typing.List[Href[Pet]]
 
 

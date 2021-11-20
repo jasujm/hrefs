@@ -3,7 +3,9 @@
 import abc
 import contextlib
 import inspect
+import operator
 import typing
+import warnings
 
 import pydantic
 import typing_extensions
@@ -177,3 +179,14 @@ class Href(typing.Generic[ReferrableType]):
     @classmethod
     def _from_url(cls, url: UrlType, model_type: typing.Type[ReferrableType]):
         return cls(key=model_type.url_to_key(url), url=url)
+
+
+try:
+    from pydantic.json import ENCODERS_BY_TYPE
+except ImportError:
+    warnings.warn(
+        "Failed to add Href encoder. This may affect serializing Href instances to json.",
+        ImportWarning,
+    )
+else:
+    ENCODERS_BY_TYPE[Href] = operator.attrgetter("url")

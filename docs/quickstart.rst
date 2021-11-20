@@ -69,7 +69,8 @@ Defining a relationship to the referrable model
 .. code-block:: python
 
    from fastapi import HTTPException, Request, Response
-   from hrefs import BaseModel, Href
+   from hrefs import Href
+   from pydantic import BaseModel
 
    class Library(BaseModel):
        id: int
@@ -94,15 +95,8 @@ Defining a relationship to the referrable model
            headers={"Location": request.url_for("get_library", id=library.id)},
        )
 
-.. note::
-
-   The ``Library`` model derives from :class:`hrefs.BaseModel`, and not
-   ``pydantic.BaseModel``. The difference is that :class:`hrefs.BaseModel` is
-   configures to use a custom JSON encoder that knows how to handle
-   :class:`hrefs.Href` objects.
-
 An annotated type ``Href[Book]`` is used to declare a hyperlink to ``Book`` ---
-or any other subclass of :class:`hrefs.ReferrableModel` for that matter!
+or any other subclass of :class:`hrefs.Referrable` for that matter!
 
 The :class:`hrefs.Href` class integrates to `pydantic
 <https://pydantic-docs.helpmanual.io/>`_. When parsing the ``books`` field (or

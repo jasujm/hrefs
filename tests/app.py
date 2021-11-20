@@ -2,8 +2,9 @@ from typing import List, Dict
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware import Middleware
+from pydantic import BaseModel
 
-from hrefs import BaseModel, Href
+from hrefs import Href
 from hrefs.starlette import ReferrableModel, HrefMiddleware
 
 

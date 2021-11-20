@@ -10,7 +10,7 @@ import fastapi.testclient
 from hypothesis import given, strategies as st
 import pydantic
 
-from hrefs import Href, BaseModel
+from hrefs import Href
 from hrefs.starlette import ReferrableModel, HrefMiddleware
 
 
@@ -21,7 +21,7 @@ class Comment(ReferrableModel):
         details_view = "get_comment"
 
 
-class Article(BaseModel):
+class Article(pydantic.BaseModel):
     id: uuid.UUID
     comments: typing.List[Href[Comment]]
 
@@ -80,9 +80,7 @@ def test_parse_key_to_href(article_id, comment_ids):
 def test_parse_url_to_href(article_id, comment_ids):
     def assert_article(article: Article):
         assert article.id == article_id
-        assert [
-            comment_href.key for comment_href in article.comments
-        ] == comment_ids
+        assert [comment_href.key for comment_href in article.comments] == comment_ids
 
     save_article_var.set(assert_article)
     response = client.post(

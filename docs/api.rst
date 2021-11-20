@@ -24,14 +24,9 @@ The two main building blocks of the :mod:`hrefs` library are
 Pydantic models
 ---------------
 
-The library provides two mixins that make writing `pydantic
-<https://pydantic-docs.helpmanual.io/>`_ models using :mod:`hrefs`
-easier. Generally any model using :class:`Href` fields should be a subclass of
-:class:`BaseModel`. Any model that is also a target of hyperlinks should
-implement :class:`BaseReferrableModel`. :class:`BaseReferrableModel` is also a
-subclass of :class:`BaseModel`, so no need to inherit both!
-
-.. autoclass:: BaseModel
+Any `pydantic <https://pydantic-docs.helpmanual.io/>`_ model that is a target of
+hyperlinks should implement :class:`BaseReferrableModel`. It inherits both
+:class:`pydantic.BaseModel` and :class:`hrefs.Referrable`.
 
 .. autoclass:: BaseReferrableModel
 
