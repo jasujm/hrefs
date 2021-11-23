@@ -1,3 +1,9 @@
+Unreleased
+----------
+
+Added
+  * Implement `Href.__modify_schema__()`
+
 Version 0.1.2
 -------------
 

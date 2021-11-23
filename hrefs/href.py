@@ -143,7 +143,7 @@ class Href(typing.Generic[ReferrableType]):
             * Another :class:`Href` instance
             * An instance of the referred model
             * A value of the key type (interpreted as key identifying the referred object)
-            * A url string (interpreted as URL to the referred objet)
+            * A url string (interpreted as URL to the referred object)
 
         Returns:
           A :class:`Href` object referring the model identified by the ``value``
@@ -171,6 +171,16 @@ class Href(typing.Generic[ReferrableType]):
             url = pydantic.parse_obj_as(url_type, value)
             return cls._from_url(url, model_type)
         raise TypeError(f"Could not convert {value!r} to either key or url")
+
+    @staticmethod
+    def __modify_schema__(schema: typing.MutableMapping[str, typing.Any]):
+        # By default pydantic will use the schema of `ReferrableModel`. That is
+        # wrong for `Href`, but without runtime type of `ReferrableModel` or
+        # being extremely hacky, I can't do much beyond clearing the schema spec
+        # (that translates to "any" type in OpenAPI).
+        # See: https://github.com/jasujm/hrefs/issues/3
+        schema.clear()
+        schema["title"] = "Href"
 
     @classmethod
     def _from_key(cls, key: KeyType, model_type: typing.Type[ReferrableType]):
