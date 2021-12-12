@@ -60,8 +60,12 @@ class ReferrableModel(BaseReferrableModel):
     """
 
     @classmethod
-    def href_types(cls):
-        return cls._get_key_type(), pydantic.AnyHttpUrl
+    def get_key_type(cls):
+        return cls.__fields__["id"].type_
+
+    @staticmethod
+    def get_url_type():
+        return pydantic.AnyHttpUrl
 
     @classmethod
     def key_to_url(cls, key):
@@ -82,13 +86,9 @@ class ReferrableModel(BaseReferrableModel):
                 )
                 if scope:
                     return pydantic.parse_obj_as(
-                        cls._get_key_type(), scope["path_params"]["id"]
+                        cls.get_key_type(), scope["path_params"]["id"]
                     )
         raise ValueError(f"Could not resolve {url} into key")
-
-    @classmethod
-    def _get_key_type(cls):
-        return cls.__fields__["id"].type_
 
     @classmethod
     def _get_details_view(cls):

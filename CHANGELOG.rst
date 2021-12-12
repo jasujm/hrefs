@@ -4,6 +4,10 @@ Unreleased
 Added
   * Implement `Href.__modify_schema__()`
 
+Changed
+  * Split `Referrable.href_types()` into `get_key_type()` and `get_url_type()`,
+    respectively
+
 Version 0.1.2
 -------------
 

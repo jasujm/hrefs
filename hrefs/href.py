@@ -64,13 +64,22 @@ class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
         return getattr(self, "id")
 
     @classmethod
-    def href_types(cls) -> typing.Tuple[typing.Type[KeyType], typing.Type[UrlType]]:
-        """Return a tuple containing the key and url types, respectively
+    def get_key_type(cls) -> typing.Type[KeyType]:
+        """Return the key type of the model
 
-        The default implementation returns the return type annotations of
-        :func:`url_to_key()` and :func:`key_to_url()`, respectively.
+        The default implementation returns the return type annotation of
+        :func:`url_to_key()`.
         """
-        return _extract_type(cls.url_to_key), _extract_type(cls.key_to_url)
+        return _extract_type(cls.url_to_key)
+
+    @classmethod
+    def get_url_type(cls) -> typing.Type[UrlType]:
+        """Return the key type of the model
+
+        The default implementation returns the return type annotation of
+        :func:`key_to_url()`.
+        """
+        return _extract_type(cls.key_to_url)
 
     @classmethod
     @abc.abstractmethod
@@ -163,14 +172,13 @@ class Href(typing.Generic[ReferrableType]):
         if isinstance(value, model_type):
             key = value.get_key()
             return cls._from_key(key, model_type)
-        key_type, url_type = model_type.href_types()
         with contextlib.suppress(pydantic.ValidationError):
-            key = pydantic.parse_obj_as(key_type, value)
+            key = pydantic.parse_obj_as(model_type.get_key_type(), value)
             return cls._from_key(key, model_type)
         with contextlib.suppress(pydantic.ValidationError):
-            url = pydantic.parse_obj_as(url_type, value)
+            url = pydantic.parse_obj_as(model_type.get_url_type(), value)
             return cls._from_url(url, model_type)
-        raise TypeError(f"Could not convert {value!r} to either key or url")
+        raise TypeError(f"Could not convert {value!r} to href")
 
     @staticmethod
     def __modify_schema__(schema: typing.MutableMapping[str, typing.Any]):
