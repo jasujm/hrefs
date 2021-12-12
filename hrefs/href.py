@@ -26,7 +26,7 @@ class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
     """Protocol that needs to be implemented by a target of :class:`Href`
 
     The class can either be used as a protocol (see `PEP 544
-    <https://www.python.org/dev/peps/pep-0544/>`_).
+    <https://www.python.org/dev/peps/pep-0544/>`_), or abstract base class.
 
     * When used as protocol in type annotations, :class:`Referrable` is
       parametrized by key and URL types, respectively. For example
