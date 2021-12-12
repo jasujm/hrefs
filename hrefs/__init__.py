@@ -3,4 +3,4 @@
 __version__ = "0.1.2"
 
 from .href import Href, Referrable
-from .model import BaseReferrableModel
+from .model import BaseReferrableModel, PrimaryKey

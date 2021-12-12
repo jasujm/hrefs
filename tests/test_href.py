@@ -4,8 +4,9 @@ import typing
 from hypothesis import given, strategies as st
 import pydantic
 import pytest
+from typing_extensions import Annotated
 
-from hrefs import Href, BaseReferrableModel
+from hrefs import Href, BaseReferrableModel, PrimaryKey
 from util import hrefs
 
 
@@ -17,7 +18,7 @@ class Pet(BaseReferrableModel):
         return f"/pets/{key}"
 
     @staticmethod
-    def url_to_key(url: str) -> int:
+    def url_to_key(url: str):
         return int(url.split("/")[-1])
 
 
@@ -68,3 +69,34 @@ def test_parse_href_without_parameter_fails():
 def test_json_encode(owner):
     owner_json = json.loads(owner.json())
     assert owner_json["pets"] == [pet.url for pet in owner.pets]
+
+
+@given(st.integers())
+def test_primary_key_annotation(my_id):
+    class MyModel(BaseReferrableModel):
+        my_id: Annotated[int, PrimaryKey]
+
+        @staticmethod
+        def key_to_url(key: int) -> None:
+            ...
+
+        @staticmethod
+        def url_to_key(url: str):
+            ...
+
+    assert MyModel(my_id=my_id).get_key() == my_id
+
+
+def test_multiple_primary_key_annotations_fails():
+    with pytest.raises(TypeError):
+
+        class MyModel(BaseReferrableModel):
+            my_id: Annotated[int, PrimaryKey, PrimaryKey]
+
+            @staticmethod
+            def key_to_url(key: int) -> None:
+                ...
+
+            @staticmethod
+            def url_to_key(url: str):
+                ...

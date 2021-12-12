@@ -27,6 +27,7 @@ class HrefMiddleware(starlette.middleware.base.BaseHTTPMiddleware):
         return await call_next(request)
 
 
+# pylint: disable=abstract-method
 class ReferrableModel(BaseReferrableModel):
     """Referrable model with Starlette integration
 

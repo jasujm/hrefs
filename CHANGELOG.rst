@@ -2,10 +2,12 @@ Unreleased
 ----------
 
 Added
-  * Implement `Href.__modify_schema__()`
+  * Implement ``Href.__modify_schema__()``
+  * Make it possible to configure model key by using ``hrefs.PrimaryKey``
+    annotation.
 
 Changed
-  * Split `Referrable.href_types()` into `get_key_type()` and `get_url_type()`,
+  * Split ``Referrable.href_types()`` into ``get_key_type()`` and ``get_url_type()``,
     respectively
 
 Version 0.1.2
