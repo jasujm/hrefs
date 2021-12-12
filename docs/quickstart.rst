@@ -47,8 +47,14 @@ To make a model target for hrefs, it needs to:
 * Inherit from :class:`hrefs.starlette.ReferrableModel`.
 
 * Have configuration called ``details_view`` naming the route that will return
-  the details of the referrable model. The URLs will be derived from the path of
-  that view plus the identity of the model.
+  the details of the referrable model. The URLs will be built by reversed
+  routing, using the *primary key* of the model as parameters.
+
+* Have a primary key used as a router parameter in ``details_view``. In the
+  above example ``Book.id`` is the primary key. This may or may not correspond
+  to the primary key in a database, but ``hrefs`` really isn't concerned the
+  database layer. By default the primary key is the ``id`` field, but can be
+  configured. See :ref:`configure_key` for details.
 
 .. note::
 
@@ -56,12 +62,6 @@ To make a model target for hrefs, it needs to:
    <https://fastapi.tiangolo.com/>`_ documentation. The route name defaults to
    the name of the handler function, but can also be defined explicitly using
    the ``name`` keyword argument in the ``@app.get()`` decorator.
-
-.. note::
-
-   Currently it is assumed that **both** the primary key of the model, and the
-   path parameter of the route, are called ``id``. It will be customizable in
-   later version of the library.
 
 Defining a relationship to the referrable model
 ...............................................

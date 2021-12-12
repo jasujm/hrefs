@@ -35,16 +35,20 @@ class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
       referrable type having ``UUID`` key and ``AnyHttpUrl`` as URL type.
 
     * When used as abstract base class, the subclass needs to implement at least
+      :func:`get_key()` to convert between model and key, and
       :func:`key_to_url()` and :func:`url_to_key()` to specify the conversions
       between the key and URL representations. The return types of the functions
       should be annotated to make them available for parsing and serialization
-      at runtime. Moreover, the default implementation assumes that the has
-      ``id`` property used as the key of the referrable. Here is an example:
+      at runtime. Here is an example:
 
       .. code-block:: python
 
          class Book(Referrable):
              id: int
+
+             @classmethod
+             def get_key(self) -> int:
+                 return self.id
 
              @classmethod
              def key_to_url(key: int) -> str:
@@ -53,15 +57,12 @@ class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
              @classmethod
              def url_to_key(url: str) -> int:
                  return url.split("/")[-1]
-
     """
 
+    @abc.abstractmethod
     def get_key(self) -> KeyType:
-        """Return the key of the model
-
-        The default implementation returns the ``id`` property of the object.
-        """
-        return getattr(self, "id")
+        """Return the key of the model"""
+        raise NotImplementedError()
 
     @classmethod
     def get_key_type(cls) -> typing.Type[KeyType]:

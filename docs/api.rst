@@ -29,6 +29,9 @@ hyperlinks should implement :class:`BaseReferrableModel`. It inherits both
 :class:`pydantic.BaseModel` and :class:`hrefs.Referrable`.
 
 .. autoclass:: BaseReferrableModel
+   :members:
+
+.. autoclass:: PrimaryKey
 
 Starlette integration
 ---------------------
