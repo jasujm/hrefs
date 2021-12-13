@@ -34,7 +34,7 @@ Composite keys
 ..............
 
 It is also possible to annotate multiple fields with ``PrimaryKey``. It will
-cause the primary key to be a tuple of the annotated fields:
+cause the primary key to be a named tuple of the annotated fields:
 
 .. code-block:: python
 
