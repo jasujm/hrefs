@@ -1,6 +1,5 @@
 """Base models for referring and referrable types"""
 
-import operator
 import typing
 
 import pydantic
@@ -36,6 +35,7 @@ if typing.TYPE_CHECKING:
 
 
 else:
+
     class _ReferrableModelMeta(pydantic.BaseModel.__class__, Referrable.__class__):
         def __new__(cls, name, bases, namespace, **kwargs):
             key_names = []
@@ -44,7 +44,10 @@ else:
                 namespace.get("__annotations__", {}), namespace.get("__module__", None)
             )
             for key_name, annotation in annotations.items():
-                if typing_extensions.get_origin(annotation) is typing_extensions.Annotated:
+                if (
+                    typing_extensions.get_origin(annotation)
+                    is typing_extensions.Annotated
+                ):
                     annotations = typing_extensions.get_args(annotation)
                     key_annotations = [key for key in annotations if key is PrimaryKey]
                     n_key_annotations = len(key_annotations)
@@ -62,13 +65,24 @@ else:
             assert len(key_names) == len(key_types)
 
             if key_types:
-                key_type = (
-                    key_types[0]
-                    if len(key_types) == 1
-                    else typing.Tuple[tuple(key_types)]
-                )
+                if len(key_types) > 1:
+                    key_type = typing.NamedTuple(
+                        f"{name}_key", list(zip(key_names, key_types))
+                    )
+
+                    def get_key(self):
+                        # pylint: disable=no-member
+                        return key_type._make(getattr(self, k) for k in key_names)
+
+                else:
+                    key_name = key_names[0]
+                    key_type = key_types[0]
+
+                    def get_key(self):
+                        return getattr(self, key_name)
+
                 namespace["_key_type"] = key_type
-                namespace["_get_key"] = operator.attrgetter(*key_names)
+                namespace["_get_key"] = get_key
 
             return super().__new__(cls, name, bases, namespace, **kwargs)
 
@@ -98,7 +112,7 @@ else:
                 The model key based on the field annotations. If the key is
                 composite, return a tuple containing the parts.
             """
-            return self._get_key(self)
+            return self._get_key()
 
         @classmethod
         def get_key_type(cls):
