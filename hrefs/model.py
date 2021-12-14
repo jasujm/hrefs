@@ -81,6 +81,7 @@ else:
                     def get_key(self):
                         return getattr(self, key_name)
 
+                namespace["_key_names"] = tuple(key_names)
                 namespace["_key_type"] = key_type
                 namespace["_get_key"] = get_key
 

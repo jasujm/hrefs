@@ -46,3 +46,24 @@ cause the primary key to be a named tuple of the annotated fields:
        page_number: Annotated[int, PrimaryKey]
 
        # ...the rest of the definition...
+
+When using composite keys with :ref:`FastAPI or Starlette models
+<starlette_models>`, each part of the key must appear in the route template.
+
+
+.. code-block:: python
+
+   from typing import Annotation
+   from hrefs import PrimaryKey
+   from hrefs.starlette import ReferrableModel
+
+   class Page(ReferrableModel):
+       book_id: Annotated[int, PrimaryKey]
+       page_number: Annotated[int, PrimaryKey]
+
+       class Config:
+           details_view = "get_page"
+
+   @app.get("/books/{book_id}/pages/{page_number}", response_model=Page)
+   def get_book(id: int):
+       # implementation

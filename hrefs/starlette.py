@@ -34,7 +34,7 @@ class ReferrableModel(BaseReferrableModel):
     This class implements the :class:`hrefs.BaseReferrableModel` with the
     following features:
 
-    * Its key type is inferred from the ``id`` field of the subclass
+    * Its key type is inferred from type annotations as in the base class
 
     * Its URL type is always :class:`pydantic.AnyHttpUrl`
 
@@ -43,9 +43,8 @@ class ReferrableModel(BaseReferrableModel):
       handlers or middleware above the :class:`HrefMiddleware` in the middleware
       stack of the application.
 
-    Here is a minimal example of a model having key type ``int`` (inferred from
-    the ``id`` property), and using route called ``"my_view"`` to convert
-    to/from URLs.
+    Here is a minimal example using route called ``"my_view"`` to convert
+    to/from URLs:
 
     .. code-block:: python
 
@@ -57,12 +56,7 @@ class ReferrableModel(BaseReferrableModel):
 
     For a more complete example of using :mod:`hrefs` library with Starlette,
     please refer to :ref:`quickstart`.
-
     """
-
-    @classmethod
-    def get_key_type(cls):
-        return cls.__fields__["id"].type_
 
     @staticmethod
     def get_url_type():
@@ -72,23 +66,33 @@ class ReferrableModel(BaseReferrableModel):
     def key_to_url(cls, key):
         request = _request_var.get()
         details_view = cls._get_details_view()
+        key_names = cls._key_names
+        if len(key_names) > 1:
+            kwargs = dict(zip(key_names, key))
+        else:
+            kwargs = {key_names[0]: key}
         return pydantic.parse_obj_as(
-            pydantic.AnyHttpUrl, request.url_for(details_view, id=key)
+            pydantic.AnyHttpUrl, request.url_for(details_view, **kwargs)
         )
 
     @classmethod
     def url_to_key(cls, url: pydantic.AnyHttpUrl):
         request = _request_var.get()
         details_view = cls._get_details_view()
+        key_names = cls._key_names
         for route in request.app.routes:
             if route.name == details_view:
                 _, scope = route.matches(
                     {"type": "http", "method": "GET", "path": url.path}
                 )
                 if scope:
-                    return pydantic.parse_obj_as(
-                        cls.get_key_type(), scope["path_params"]["id"]
-                    )
+                    if len(key_names) > 1:
+                        path_params = scope["path_params"]
+                        key = [path_params[name] for name in key_names]
+                    else:
+                        key_name = key_names[0]
+                        key = scope["path_params"][key_name]
+                    return pydantic.parse_obj_as(cls.get_key_type(), key)
         raise ValueError(f"Could not resolve {url} into key")
 
     @classmethod
