@@ -21,6 +21,8 @@ stack:
 
    app = FastAPI(middleware=[Middleware(HrefMiddleware)])
 
+.. _starlette_models:
+
 Defining a referrable model
 ...........................
 

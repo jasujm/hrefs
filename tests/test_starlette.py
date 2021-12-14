@@ -9,8 +9,9 @@ import fastapi.middleware
 import fastapi.testclient
 from hypothesis import given, strategies as st
 import pydantic
+from typing_extensions import Annotated
 
-from hrefs import Href
+from hrefs import Href, PrimaryKey
 from hrefs.starlette import ReferrableModel, HrefMiddleware
 
 
@@ -21,12 +22,22 @@ class Comment(ReferrableModel):
         details_view = "get_comment"
 
 
+class ArticleRevision(ReferrableModel):
+    article_id: Annotated[uuid.UUID, PrimaryKey]
+    revision: Annotated[int, PrimaryKey]
+
+    class Config:
+        details_view = "get_revision"
+
+
 class Article(pydantic.BaseModel):
     id: uuid.UUID
     comments: typing.List[Href[Comment]]
+    current_revision: typing.Optional[Href[ArticleRevision]]
 
 
 article_var: contextvars.ContextVar[uuid.UUID] = contextvars.ContextVar("article_var")
+revision_var: contextvars.ContextVar[int] = contextvars.ContextVar("revision_var")
 comments_var: contextvars.ContextVar[typing.List[uuid.UUID]] = contextvars.ContextVar(
     "comments_var"
 )
@@ -44,6 +55,7 @@ async def get_article(id: uuid.UUID):
     return Article(
         id=id,
         comments=comments_var.get(),
+        current_revision=(id, revision_var.get()),
     )
 
 
@@ -59,12 +71,19 @@ async def get_comment(id: uuid.UUID):
     return Comment(id=id)
 
 
+@app.get("/articles/{article_id}/revisions/{revision}")
+async def get_revision(article_id: uuid.UUID, revision: int):
+    assert article_id == article_var.get()
+    return ArticleRevision(article_id=article_id, revision=revision)
+
+
 client = fastapi.testclient.TestClient(app)
 
 
-@given(st.uuids(), st.lists(st.uuids(), min_size=1))
-def test_parse_key_to_href(article_id, comment_ids):
+@given(st.uuids(), st.integers(), st.lists(st.uuids(), min_size=1))
+def test_parse_key_to_href(article_id, revision, comment_ids):
     article_var.set(article_id)
+    revision_var.set(revision)
     comments_var.set(comment_ids)
     response = client.get(f"/articles/{article_id}")
     assert response.status_code == fastapi.status.HTTP_200_OK, response.text
@@ -74,13 +93,17 @@ def test_parse_key_to_href(article_id, comment_ids):
     )
     comment = client.get(comment_href).json()
     assert uuid.UUID(comment["id"]) == comment_id
+    current_revision_href = article["current_revision"]
+    current_revision = client.get(current_revision_href).json()
+    assert current_revision == {"article_id": str(article_id), "revision": revision}
 
 
-@given(st.uuids(), st.lists(st.uuids(), min_size=1))
-def test_parse_url_to_href(article_id, comment_ids):
+@given(st.uuids(), st.integers(), st.lists(st.uuids(), min_size=1))
+def test_parse_url_to_href(article_id, revision, comment_ids):
     def assert_article(article: Article):
         assert article.id == article_id
         assert [comment_href.key for comment_href in article.comments] == comment_ids
+        assert article.current_revision.key == (article_id, revision)
 
     save_article_var.set(assert_article)
     response = client.post(
@@ -89,6 +112,7 @@ def test_parse_url_to_href(article_id, comment_ids):
             dict(
                 id=str(article_id),
                 comments=[f"http://testclient/comments/{id}" for id in comment_ids],
+                current_revision=f"http://testclient/articles/{article_id}/revisions/{revision}",
             )
         ),
     )
