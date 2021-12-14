@@ -10,8 +10,8 @@ Setting up the application
 ..........................
 
 The :mod:`hrefs` library resolves URLs automatically. In order for that to work,
-it only needs the :class:`hrefs.HrefMiddleware` to be included in the middleware
-stack:
+it only needs the :class:`hrefs.starlette.HrefMiddleware` to be included in the
+middleware stack:
 
 .. code-block:: python
 
@@ -101,9 +101,8 @@ An annotated type ``Href[Book]`` is used to declare a hyperlink to ``Book`` ---
 or any other subclass of :class:`hrefs.Referrable` for that matter!
 
 The :class:`hrefs.Href` class integrates to `pydantic
-<https://pydantic-docs.helpmanual.io/>`_. When parsing the ``books`` field (or
-any other ), the following values can automatically be converted to `Href`
-instances:
+<https://pydantic-docs.helpmanual.io/>`_. When parsing the ``books`` field , the
+following values can automatically be converted to hrefs:
 
 * Another :class:`hrefs.Href` instance.
 
@@ -183,7 +182,8 @@ containing hrefs. You just need to ensure that:
 * For each :class:`hrefs.starlette.ReferrableModel` there is a named
   route matching the ``details_view`` configuration.
 
-* The :class:`HrefMiddleware` is added as middleware to the application.
+* The :class:`hrefs.starlette.HrefMiddleware` is added as middleware to the
+  application.
 
 * In the responses, the pydantic models containing references are explicitly
   serialized using ``model.json()`` method.
