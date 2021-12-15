@@ -8,6 +8,8 @@ import typing_extensions
 
 from .href import Referrable
 
+_DEFAULT_KEY = "id"
+
 
 class PrimaryKey:
     """Annotation declaring a field in :class:`BaseReferrableModel` as key
@@ -38,10 +40,10 @@ class _ReferrableModelMeta(_base1, _base2):
     def __new__(cls, name, bases, namespace, **kwargs):
         key_names = []
         key_types = []
-        annotations = pydantic.typing.resolve_annotations(
+        all_annotations = pydantic.typing.resolve_annotations(
             namespace.get("__annotations__", {}), namespace.get("__module__", None)
         )
-        for key_name, annotation in annotations.items():
+        for key_name, annotation in all_annotations.items():
             if typing_extensions.get_origin(annotation) is typing_extensions.Annotated:
                 annotations = typing_extensions.get_args(annotation)
                 key_annotations = [key for key in annotations if key is PrimaryKey]
@@ -54,9 +56,9 @@ class _ReferrableModelMeta(_base1, _base2):
                 if n_key_annotations == 1:
                     key_names.append(key_name)
                     key_types.append(annotations[0])
-        if not key_names and "id" in annotations:
-            key_names.append("id")
-            key_types.append(annotations["id"])
+        if not key_names and _DEFAULT_KEY in all_annotations:
+            key_names.append(_DEFAULT_KEY)
+            key_types.append(all_annotations[_DEFAULT_KEY])
         assert len(key_names) == len(key_types)
 
         if key_types:
