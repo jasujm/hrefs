@@ -1,5 +1,6 @@
 # for RTD
 pydantic>=1.7
 starlette==0.16.0
+typing_extensions
 sphinx
 sphinx-rtd-theme
