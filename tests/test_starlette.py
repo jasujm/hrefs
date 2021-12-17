@@ -33,7 +33,7 @@ class ArticleRevision(ReferrableModel):
 class Article(pydantic.BaseModel):
     id: uuid.UUID
     comments: typing.List[Href[Comment]]
-    current_revision: typing.Optional[Href[ArticleRevision]]
+    current_revision: Href[ArticleRevision]
 
 
 article_var: contextvars.ContextVar[uuid.UUID] = contextvars.ContextVar("article_var")
