@@ -1,5 +1,8 @@
-Unreleased
-----------
+Version 0.2
+-----------
+
+Date
+  2021-12-17
 
 Added
   * Implement ``Href.__modify_schema__()``
