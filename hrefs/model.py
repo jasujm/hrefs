@@ -10,6 +10,8 @@ from .href import Referrable
 
 _DEFAULT_KEY = "id"
 
+T = typing.TypeVar("T")
+
 
 class PrimaryKey:
     """Annotation declaring a field in :class:`BaseReferrableModel` as key
@@ -97,9 +99,9 @@ class BaseReferrableModel(
     pydantic model that will be used as target of :class:`hrefs.Href`.
 
     ``BaseReferrableModel`` provides implementation on :func:`get_key()` and
-    :func:`get_key_type()` based on its field annotations. By default the
-    model key is the ``id`` field (if it exists), but that can be changed by
-    using :class:`PrimaryKey` to annotate other field(s).
+    :func:`parse_as_key()` based on its field annotations. By default the model
+    key is the ``id`` field (if it exists), but that can be changed by using
+    :class:`PrimaryKey` to annotate other field(s).
 
     When using referrable models with FastAPI or Starlette in particular,
     :class:`hrefs.starlette.ReferrableModel` is more natural base.
@@ -107,22 +109,36 @@ class BaseReferrableModel(
 
     _key_names: typing.ClassVar[typing.Tuple[str]]
 
-    def get_key(self):
+    def get_key(self) -> typing.Any:
         """Return the model key
 
         Returns:
             The model key based on the field annotations. If the key is
             composite, return a tuple containing the parts.
         """
-        return self._get_key()
+        return self._get_key()  # type: ignore
 
-    @classmethod
-    def get_key_type(cls):
-        """Return the model key type
+    @staticmethod
+    def try_parse_as(type_: typing.Type[T], value: typing.Any) -> typing.Optional[T]:
+        """Like ``pydantic.parse_obj_as()`` except return ``None`` on validation error
+
+        Arguments:
+            type_: the type parsed to
+            value: the value to parse
 
         Returns:
-            The type of the model key based on the field annotations. Either
-            a single type, or (in case of composite key), a tuple of the
-            parts.
+            ``value`` parsed as type ``type_``, or ``None`` on validation error
         """
-        return cls._key_type
+        try:
+            return pydantic.parse_obj_as(type_, value)
+        except pydantic.ValidationError:
+            return None
+
+    @classmethod
+    def parse_as_key(cls, value: typing.Any) -> typing.Optional[typing.Any]:
+        """Parse ``value`` as the key type
+
+        The type of the model key based on the field annotations. Either a
+        single type, or (in case of composite key), a tuple of the parts.
+        """
+        return cls.try_parse_as(cls._key_type, value)

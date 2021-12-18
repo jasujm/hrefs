@@ -1,6 +1,7 @@
 """Starlette integration"""
 
 import contextvars
+import typing
 
 import pydantic
 import starlette.requests
@@ -58,9 +59,10 @@ class ReferrableModel(BaseReferrableModel):
     please refer to :ref:`quickstart`.
     """
 
-    @staticmethod
-    def get_url_type():
-        return pydantic.AnyHttpUrl
+    @classmethod
+    def parse_as_url(cls, value: typing.Any) -> typing.Optional[pydantic.AnyHttpUrl]:
+        """Parse ``value`` as ``pydantic.AnyHttpUrl``"""
+        return cls.try_parse_as(pydantic.AnyHttpUrl, value)
 
     @classmethod
     def key_to_url(cls, key):
@@ -92,7 +94,7 @@ class ReferrableModel(BaseReferrableModel):
                     else:
                         key_name = key_names[0]
                         key = scope["path_params"][key_name]
-                    return pydantic.parse_obj_as(cls.get_key_type(), key)
+                    return cls.parse_as_key(key)
         raise ValueError(f"Could not resolve {url} into key")
 
     @classmethod

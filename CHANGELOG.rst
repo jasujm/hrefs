@@ -4,6 +4,10 @@ Unreleased
 Added
   * ``tox`` for test automation
 
+Changed
+  * Replace ``get_key_type()`` and ``get_key_url()`` with ``parse_as_key()`` and
+    ``parse_as_url()``, respectively
+
 Version 0.2
 -----------
 
