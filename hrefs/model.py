@@ -36,6 +36,7 @@ _base1: typing.Any = type(pydantic.BaseModel)
 _base2: typing.Any = type(Referrable)
 
 
+# pylint: disable=duplicate-bases,inconsistent-mro
 class _ReferrableModelMeta(_base1, _base2):
     def __new__(cls, name, bases, namespace, **kwargs):
         key_names = []

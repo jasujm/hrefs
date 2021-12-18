@@ -1,3 +1,9 @@
+Unreleased
+----------
+
+Added
+  * ``tox`` for test automation
+
 Version 0.2
 -----------
 

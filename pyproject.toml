@@ -34,11 +34,13 @@ requires-python=">=3.7"
 
 [project.optional-dependencies]
 test = [
+  "tox>=3.24",
   "pytest>=6.2",
   "hypothesis>=6.24",
   "fastapi",
+  "requests",
   "black",
-  "pylint",
+  "pylint>=2.12",
   "mypy",
 ]
 
