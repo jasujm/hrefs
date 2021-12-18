@@ -1,25 +1,33 @@
 """Model references"""
 
 import abc
-import contextlib
 import inspect
 import operator
 import typing
 import warnings
 
-import pydantic
 import typing_extensions
 
+T = typing.TypeVar("T")
 KeyType = typing.TypeVar("KeyType")
 UrlType = typing.TypeVar("UrlType")
 
 
-def _extract_type(meth: typing.Callable) -> typing.Type:
+if typing.TYPE_CHECKING:
+    import pydantic.fields
+
+
+def _try_convert(
+    meth: typing.Callable[..., T], value: typing.Any
+) -> typing.Optional[T]:
     return_annotation = inspect.signature(meth).return_annotation
     assert (
         return_annotation != inspect.Signature.empty
     ), f"return annotation of {meth!r} unexpectedly empty"
-    return return_annotation
+    try:
+        return return_annotation(value)
+    except (TypeError, ValueError):
+        return None
 
 
 class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
@@ -65,22 +73,34 @@ class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
         raise NotImplementedError()
 
     @classmethod
-    def get_key_type(cls) -> typing.Type[KeyType]:
-        """Return the key type of the model
+    def parse_as_key(cls, value: typing.Any) -> typing.Optional[KeyType]:
+        """Attempt to parse ``value`` as key
 
-        The default implementation returns the return type annotation of
-        :func:`url_to_key()`.
+        The default implementation reads the return type annotation of
+        ``url_to_key()``, and tries to convert ``value``, swallowing
+        ``TypeError`` and ``ValueError``.
+
+        Return:
+            ``value`` parameter converted to key type, or ``None`` if unable to
+            parse
+
         """
-        return _extract_type(cls.url_to_key)
+        return _try_convert(cls.url_to_key, value)
 
     @classmethod
-    def get_url_type(cls) -> typing.Type[UrlType]:
-        """Return the key type of the model
+    def parse_as_url(cls, value: typing.Any) -> typing.Optional[UrlType]:
+        """Attempt to parse ``value`` as URL
 
-        The default implementation returns the return type annotation of
-        :func:`key_to_url()`.
+        The default implementation reads the return type annotation of
+        ``key_to_url()``, and tries to convert ``value``, swallowing
+        ``TypeError`` and ``ValueError``.
+
+        Return:
+            ``value`` parameter converted to URL type, or ``None`` if unable to
+            parse
+
         """
-        return _extract_type(cls.key_to_url)
+        return _try_convert(cls.key_to_url, value)
 
     @classmethod
     @abc.abstractmethod
@@ -139,7 +159,7 @@ class Href(typing.Generic[ReferrableType]):
         yield cls.validate
 
     @classmethod
-    def validate(cls, value, field: pydantic.fields.ModelField):
+    def validate(cls, value, field: "pydantic.fields.ModelField"):
         """Parse ``value`` into hyperlink
 
         This method mainly exists for integration to pydantic. A user rarely
@@ -173,11 +193,11 @@ class Href(typing.Generic[ReferrableType]):
         if isinstance(value, model_type):
             key = value.get_key()
             return cls._from_key(key, model_type)
-        with contextlib.suppress(pydantic.ValidationError):
-            key = pydantic.parse_obj_as(model_type.get_key_type(), value)
+        key = model_type.parse_as_key(value)
+        if key is not None:
             return cls._from_key(key, model_type)
-        with contextlib.suppress(pydantic.ValidationError):
-            url = pydantic.parse_obj_as(model_type.get_url_type(), value)
+        url = model_type.parse_as_url(value)
+        if url is not None:
             return cls._from_url(url, model_type)
         raise TypeError(f"Could not convert {value!r} to href")
 
