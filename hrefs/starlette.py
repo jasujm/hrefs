@@ -10,6 +10,10 @@ import starlette.middleware.base
 from .model import BaseReferrableModel
 
 
+_URL_MODEL: typing.Type[pydantic.BaseModel] = pydantic.create_model(
+    "_URL_MODEL", __root__=(pydantic.AnyHttpUrl, ...)
+)
+
 _request_var: contextvars.ContextVar[
     starlette.requests.Request
 ] = contextvars.ContextVar("_request_var")
@@ -62,10 +66,10 @@ class ReferrableModel(BaseReferrableModel):
     @classmethod
     def parse_as_url(cls, value: typing.Any) -> typing.Optional[pydantic.AnyHttpUrl]:
         """Parse ``value`` as ``pydantic.AnyHttpUrl``"""
-        return cls.try_parse_as(pydantic.AnyHttpUrl, value)
+        return cls.try_parse_as(_URL_MODEL, value)
 
     @classmethod
-    def key_to_url(cls, key):
+    def key_to_url(cls, key) -> pydantic.AnyHttpUrl:
         request = _request_var.get()
         details_view = cls._get_details_view()
         key_names = cls._key_names
@@ -78,7 +82,7 @@ class ReferrableModel(BaseReferrableModel):
         )
 
     @classmethod
-    def url_to_key(cls, url: pydantic.AnyHttpUrl):
+    def url_to_key(cls, url: pydantic.AnyHttpUrl) -> typing.Any:
         request = _request_var.get()
         details_view = cls._get_details_view()
         key_names = cls._key_names
