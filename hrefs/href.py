@@ -145,7 +145,11 @@ class Href(typing.Generic[ReferrableType]):
         return f"Href(key={self._key!r}, url={self._url!r})"
 
     def __eq__(self, other):
-        return isinstance(other, Href) and self._key == other._key and self._url == other._url
+        return (
+            isinstance(other, Href)
+            and self._key == other._key
+            and self._url == other._url
+        )
 
     @property
     def key(self):

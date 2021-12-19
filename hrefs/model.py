@@ -6,9 +6,22 @@ import pydantic
 import pydantic.typing
 import typing_extensions
 
-from .href import Referrable
+from .href import Href, Referrable
 
 _DEFAULT_KEY = "id"
+
+
+def _unwrap_key(obj: typing.Any):
+    while isinstance(obj, Href):
+        obj = obj.key
+    return obj
+
+
+def _getattr_and_maybe_unwrap_key(obj: typing.Any, name: str, unwrap_key: bool):
+    ret = getattr(obj, name)
+    if unwrap_key:
+        ret = _unwrap_key(ret)
+    return ret
 
 
 class PrimaryKey:
@@ -26,7 +39,14 @@ class PrimaryKey:
            # ...the rest of the definitions...
 
     See :ref:`configure_key` for more details.
+
+    Arguments:
+        type_: The underlying key type if the annotated primary key is
+               itself a hyperlink. See :ref:`href_as_key`.
     """
+
+    def __init__(self, type_: typing.Type=None):
+        self.type_ = type_
 
 
 # mypy doesn't like dynamic base classes:
@@ -34,6 +54,11 @@ class PrimaryKey:
 # ...so working around by some dirty casts
 _base1: typing.Any = type(pydantic.BaseModel)
 _base2: typing.Any = type(Referrable)
+
+
+class _ReferrableModelKeyInfo(typing.NamedTuple):
+    key_type: typing.Type
+    should_unwrap_key: bool
 
 
 # pylint: disable=duplicate-bases,inconsistent-mro
@@ -66,12 +91,16 @@ class _ReferrableModelMeta(_base1, _base2):
     def _create_key_names_and_types(
         name: str, all_annotations: typing.Mapping[str, typing.Any]
     ):
-        key_names = []
-        key_types = []
+        key_names: typing.List[str] = []
+        key_infos: typing.List[_ReferrableModelKeyInfo] = []
         for key_name, annotation in all_annotations.items():
             if typing_extensions.get_origin(annotation) is typing_extensions.Annotated:
                 annotations = typing_extensions.get_args(annotation)
-                key_annotations = [key for key in annotations if key is PrimaryKey]
+                key_annotations = [
+                    key
+                    for key in annotations
+                    if key is PrimaryKey or isinstance(key, PrimaryKey)
+                ]
                 n_key_annotations = len(key_annotations)
                 if n_key_annotations > 1:
                     raise TypeError(
@@ -80,32 +109,62 @@ class _ReferrableModelMeta(_base1, _base2):
                     )
                 if n_key_annotations == 1:
                     key_names.append(key_name)
-                    key_types.append(annotations[0])
+                    origin_type = annotations[0]
+                    type_from_annotation = getattr(key_annotations[0], "type_", None)
+                    key_type = type_from_annotation or origin_type
+                    should_unwrap_key = (
+                        typing_extensions.get_origin(origin_type) is Href
+                        and type_from_annotation is not None
+                    )
+                    key_infos.append(
+                        _ReferrableModelKeyInfo(key_type, should_unwrap_key)
+                    )
         if not key_names and _DEFAULT_KEY in all_annotations:
             key_names.append(_DEFAULT_KEY)
-            key_types.append(all_annotations[_DEFAULT_KEY])
-        return key_names, key_types
+            key_infos.append(
+                _ReferrableModelKeyInfo(all_annotations[_DEFAULT_KEY], False)
+            )
+        return key_names, key_infos
 
     @classmethod
     def _create_key_converters_multiple_types(
         cls,
         key_names: typing.Iterable[str],
-        key_types: typing.Iterable[typing.Type],
+        key_infos: typing.Iterable[_ReferrableModelKeyInfo],
     ):
-        key_type = typing.NamedTuple("key", list(zip(key_names, key_types)))  # type: ignore
+        key_type = typing.NamedTuple(  # type: ignore
+            "key",
+            [
+                (key_name, key_info.key_type)
+                for (key_name, key_info) in zip(key_names, key_infos)
+            ],
+        )
         key_model = cls._create_key_model(key_type)
 
         def get_key(self):
-            return key_model(__root__=[getattr(self, k) for k in key_names]).__root__
+            return key_model(
+                __root__=[
+                    _getattr_and_maybe_unwrap_key(
+                        self, key_name, key_info.should_unwrap_key
+                    )
+                    for key_name, key_info in zip(key_names, key_infos)
+                ]
+            ).__root__
 
         return key_model, get_key
 
     @classmethod
-    def _create_key_converters_single_type(cls, key_name: str, key_type: typing.Type):
-        key_model = cls._create_key_model(key_type)
+    def _create_key_converters_single_type(
+        cls, key_name: str, key_info: _ReferrableModelKeyInfo
+    ):
+        key_model = cls._create_key_model(key_info.key_type)
 
         def get_key(self):
-            return key_model(__root__=getattr(self, key_name)).__root__
+            return key_model(
+                __root__=_getattr_and_maybe_unwrap_key(
+                    self, key_name, key_info.should_unwrap_key
+                )
+            ).__root__
 
         return key_model, get_key
 
@@ -172,3 +231,8 @@ class BaseReferrableModel(
         single type, or (in case of composite key), a tuple of the parts.
         """
         return cls.try_parse_as(cls._key_model, value)
+
+    @classmethod
+    def update_forward_refs(cls, **localns: typing.Any) -> None:
+        super().update_forward_refs(**localns)
+        cls._key_model.update_forward_refs(**localns)
