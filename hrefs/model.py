@@ -10,8 +10,6 @@ from .href import Referrable
 
 _DEFAULT_KEY = "id"
 
-T = typing.TypeVar("T")
-
 
 class PrimaryKey:
     """Annotation declaring a field in :class:`BaseReferrableModel` as key
@@ -41,11 +39,35 @@ _base2: typing.Any = type(Referrable)
 # pylint: disable=duplicate-bases,inconsistent-mro
 class _ReferrableModelMeta(_base1, _base2):
     def __new__(cls, name, bases, namespace, **kwargs):
-        key_names = []
-        key_types = []
-        all_annotations = pydantic.typing.resolve_annotations(
+        annotations = pydantic.typing.resolve_annotations(
             namespace.get("__annotations__", {}), namespace.get("__module__", None)
         )
+        key_names, key_types = cls._create_key_names_and_types(name, annotations)
+        assert len(key_names) == len(key_types)
+
+        if key_types:
+            if len(key_types) > 1:
+                key_model, get_key = cls._create_key_converters_multiple_types(
+                    key_names, key_types
+                )
+
+            else:
+                key_model, get_key = cls._create_key_converters_single_type(
+                    key_names[0], key_types[0]
+                )
+
+            namespace["_key_names"] = tuple(key_names)
+            namespace["_key_model"] = key_model
+            namespace["_get_key"] = get_key
+
+        return super().__new__(cls, name, bases, namespace, **kwargs)
+
+    @staticmethod
+    def _create_key_names_and_types(
+        name: str, all_annotations: typing.Mapping[str, typing.Any]
+    ):
+        key_names = []
+        key_types = []
         for key_name, annotation in all_annotations.items():
             if typing_extensions.get_origin(annotation) is typing_extensions.Annotated:
                 annotations = typing_extensions.get_args(annotation)
@@ -62,30 +84,34 @@ class _ReferrableModelMeta(_base1, _base2):
         if not key_names and _DEFAULT_KEY in all_annotations:
             key_names.append(_DEFAULT_KEY)
             key_types.append(all_annotations[_DEFAULT_KEY])
-        assert len(key_names) == len(key_types)
+        return key_names, key_types
 
-        if key_types:
-            if len(key_types) > 1:
-                key_type = typing.NamedTuple(
-                    f"{name}_key", list(zip(key_names, key_types))
-                )
+    @classmethod
+    def _create_key_converters_multiple_types(
+        cls,
+        key_names: typing.Iterable[str],
+        key_types: typing.Iterable[typing.Type],
+    ):
+        key_type = typing.NamedTuple("key", list(zip(key_names, key_types)))  # type: ignore
+        key_model = cls._create_key_model(key_type)
 
-                def get_key(self):
-                    # pylint: disable=no-member
-                    return key_type._make(getattr(self, k) for k in key_names)
+        def get_key(self):
+            return key_model(__root__=[getattr(self, k) for k in key_names]).__root__
 
-            else:
-                key_name = key_names[0]
-                key_type = key_types[0]
+        return key_model, get_key
 
-                def get_key(self):
-                    return getattr(self, key_name)
+    @classmethod
+    def _create_key_converters_single_type(cls, key_name: str, key_type: typing.Type):
+        key_model = cls._create_key_model(key_type)
 
-            namespace["_key_names"] = tuple(key_names)
-            namespace["_key_type"] = key_type
-            namespace["_get_key"] = get_key
+        def get_key(self):
+            return key_model(__root__=getattr(self, key_name)).__root__
 
-        return super().__new__(cls, name, bases, namespace, **kwargs)
+        return key_model, get_key
+
+    @staticmethod
+    def _create_key_model(key_type: typing.Type):
+        return pydantic.create_model("key_model", __root__=(key_type, ...))
 
 
 # pylint: disable=abstract-method
@@ -107,7 +133,9 @@ class BaseReferrableModel(
     :class:`hrefs.starlette.ReferrableModel` is more natural base.
     """
 
+    _key_model: typing.ClassVar[typing.Type[pydantic.BaseModel]]
     _key_names: typing.ClassVar[typing.Tuple[str]]
+    _get_key: typing.ClassVar[typing.Callable[["BaseReferrableModel"], typing.Any]]
 
     def get_key(self) -> typing.Any:
         """Return the model key
@@ -116,21 +144,23 @@ class BaseReferrableModel(
             The model key based on the field annotations. If the key is
             composite, return a tuple containing the parts.
         """
-        return self._get_key()  # type: ignore
+        return self._get_key()
 
     @staticmethod
-    def try_parse_as(type_: typing.Type[T], value: typing.Any) -> typing.Optional[T]:
-        """Like ``pydantic.parse_obj_as()`` except return ``None`` on validation error
+    def try_parse_as(
+        model: typing.Type[pydantic.BaseModel], value: typing.Any
+    ) -> typing.Optional[typing.Any]:
+        """Parse ``value`` as ``model`` but swallow validation error
 
         Arguments:
-            type_: the type parsed to
+            model: the model parsed to
             value: the value to parse
 
         Returns:
-            ``value`` parsed as type ``type_``, or ``None`` on validation error
+            ``value`` parsed as ``model``, or ``None`` on validation error
         """
         try:
-            return pydantic.parse_obj_as(type_, value)
+            return model.parse_obj(value).__root__
         except pydantic.ValidationError:
             return None
 
@@ -141,4 +171,4 @@ class BaseReferrableModel(
         The type of the model key based on the field annotations. Either a
         single type, or (in case of composite key), a tuple of the parts.
         """
-        return cls.try_parse_as(cls._key_type, value)
+        return cls.try_parse_as(cls._key_model, value)
