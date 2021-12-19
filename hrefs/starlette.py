@@ -7,7 +7,7 @@ import pydantic
 import starlette.requests
 import starlette.middleware.base
 
-from .model import BaseReferrableModel
+from .model import BaseReferrableModel, _unwrap_key
 
 
 _URL_MODEL: typing.Type[pydantic.BaseModel] = pydantic.create_model(
@@ -74,9 +74,9 @@ class ReferrableModel(BaseReferrableModel):
         details_view = cls._get_details_view()
         key_names = cls._key_names
         if len(key_names) > 1:
-            kwargs = dict(zip(key_names, key))
+            kwargs = {name: _unwrap_key(part) for (name, part) in zip(key_names, key)}
         else:
-            kwargs = {key_names[0]: key}
+            kwargs = {key_names[0]: _unwrap_key(key)}
         return pydantic.parse_obj_as(
             pydantic.AnyHttpUrl, request.url_for(details_view, **kwargs)
         )

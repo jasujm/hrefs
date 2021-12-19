@@ -3,6 +3,7 @@ Unreleased
 
 Added
   * ``tox`` for test automation
+  * Support for hyperlinks as model keys
 
 Changed
   * Replace ``get_key_type()`` and ``get_key_url()`` with ``parse_as_key()`` and

@@ -22,18 +22,24 @@ class Comment(ReferrableModel):
         details_view = "get_comment"
 
 
+class Article(ReferrableModel):
+    id: uuid.UUID
+    comments: typing.List[Href[Comment]]
+    current_revision: Href[typing.ForwardRef("ArticleRevision")]
+
+    class Config:
+        details_view = "get_article"
+
+
 class ArticleRevision(ReferrableModel):
-    article_id: Annotated[uuid.UUID, PrimaryKey]
+    article: Annotated[Href[Article], PrimaryKey]
     revision: Annotated[int, PrimaryKey]
 
     class Config:
         details_view = "get_revision"
 
 
-class Article(pydantic.BaseModel):
-    id: uuid.UUID
-    comments: typing.List[Href[Comment]]
-    current_revision: Href[ArticleRevision]
+Article.update_forward_refs()
 
 
 article_var: contextvars.ContextVar[uuid.UUID] = contextvars.ContextVar("article_var")
@@ -71,10 +77,10 @@ async def get_comment(id: uuid.UUID):
     return Comment(id=id)
 
 
-@app.get("/articles/{article_id}/revisions/{revision}")
-async def get_revision(article_id: uuid.UUID, revision: int):
-    assert article_id == article_var.get()
-    return ArticleRevision(article_id=article_id, revision=revision)
+@app.get("/articles/{article}/revisions/{revision}")
+async def get_revision(article: uuid.UUID, revision: int):
+    assert article == article_var.get()
+    return ArticleRevision(article=article, revision=revision)
 
 
 client = fastapi.testclient.TestClient(app)
@@ -95,7 +101,10 @@ def test_parse_key_to_href(article_id, revision, comment_ids):
     assert uuid.UUID(comment["id"]) == comment_id
     current_revision_href = article["current_revision"]
     current_revision = client.get(current_revision_href).json()
-    assert current_revision == {"article_id": str(article_id), "revision": revision}
+    assert current_revision == {
+        "article": f"http://testserver/articles/{article_id}",
+        "revision": revision,
+    }
 
 
 @given(st.uuids(), st.integers(), st.lists(st.uuids(), min_size=1))
@@ -103,7 +112,9 @@ def test_parse_url_to_href(article_id, revision, comment_ids):
     def assert_article(article: Article):
         assert article.id == article_id
         assert [comment_href.key for comment_href in article.comments] == comment_ids
-        assert article.current_revision.key == (article_id, revision)
+        _article, _revision = article.current_revision.key
+        assert _article.key == article_id
+        assert _revision == revision
 
     save_article_var.set(assert_article)
     response = client.post(
