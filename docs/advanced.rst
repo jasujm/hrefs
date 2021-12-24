@@ -15,7 +15,7 @@ by annotating another field with :class:`hrefs.PrimaryKey`.
 
 .. code-block:: python
 
-   from typing import Annotation
+   from typing import Annotated
    from hrefs import BaseReferrableModel, PrimaryKey
 
    class MyModel(BaseReferrableModel):
@@ -27,7 +27,7 @@ Then ``MyModel.my_id`` is the key used by ``Href[MyModel]``.
 
 .. note::
 
-   Before Python 3.8, ``typing_extensions.Annotation`` can be used to annotate
+   Before Python 3.8, ``typing_extensions.Annotated`` can be used to annotate
    the fields.
 
 Composite keys
@@ -38,7 +38,7 @@ cause the primary key to be a named tuple of the annotated fields:
 
 .. code-block:: python
 
-   from typing import Annotation
+   from typing import Annotated
    from hrefs import BaseReferrableModel, PrimaryKey
 
    class Page(BaseReferrableModel):
@@ -53,7 +53,7 @@ When using composite keys with :ref:`FastAPI or Starlette models
 
 .. code-block:: python
 
-   from typing import Annotation
+   from typing import Annotated
    from hrefs import PrimaryKey
    from hrefs.starlette import ReferrableModel
 
