@@ -7,7 +7,7 @@ import pydantic
 import starlette.requests
 import starlette.middleware.base
 
-from .model import BaseReferrableModel, _unwrap_key
+from .model import BaseReferrableModel
 
 
 _URL_MODEL: typing.Type[pydantic.BaseModel] = pydantic.create_model(
@@ -72,11 +72,7 @@ class ReferrableModel(BaseReferrableModel):
     def key_to_url(cls, key) -> pydantic.AnyHttpUrl:
         request = _request_var.get()
         details_view = cls._get_details_view()
-        key_names = cls._key_names
-        if len(key_names) > 1:
-            kwargs = {name: _unwrap_key(part) for (name, part) in zip(key_names, key)}
-        else:
-            kwargs = {key_names[0]: _unwrap_key(key)}
+        kwargs = cls.key_to_path_params(key)
         return pydantic.parse_obj_as(
             pydantic.AnyHttpUrl, request.url_for(details_view, **kwargs)
         )
@@ -85,20 +81,13 @@ class ReferrableModel(BaseReferrableModel):
     def url_to_key(cls, url: pydantic.AnyHttpUrl) -> typing.Any:
         request = _request_var.get()
         details_view = cls._get_details_view()
-        key_names = cls._key_names
         for route in request.app.routes:
             if route.name == details_view:
                 _, scope = route.matches(
                     {"type": "http", "method": "GET", "path": url.path}
                 )
                 if scope:
-                    if len(key_names) > 1:
-                        path_params = scope["path_params"]
-                        key = [path_params[name] for name in key_names]
-                    else:
-                        key_name = key_names[0]
-                        key = scope["path_params"][key_name]
-                    return cls.parse_as_key(key)
+                    return cls.path_params_to_key(scope["path_params"])
         raise ValueError(f"Could not resolve {url} into key")
 
     @classmethod

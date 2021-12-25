@@ -45,7 +45,7 @@ class PrimaryKey:
                itself a hyperlink. See :ref:`href_as_key`.
     """
 
-    def __init__(self, type_: typing.Type=None):
+    def __init__(self, type_: typing.Type = None):
         self.type_ = type_
 
 
@@ -72,20 +72,28 @@ class _ReferrableModelMeta(_base1, _base2):
 
         if key_types:
             if len(key_types) > 1:
-                key_model, get_key = cls._create_key_converters_multiple_types(
-                    key_names, key_types
-                )
+                (
+                    key_model,
+                    get_key,
+                ) = cls._create_key_converters_multiple_types(key_names, key_types)
 
             else:
-                key_model, get_key = cls._create_key_converters_single_type(
-                    key_names[0], key_types[0]
-                )
+                (
+                    key_model,
+                    get_key,
+                ) = cls._create_key_converters_single_type(key_names[0], key_types[0])
 
             namespace["_key_names"] = tuple(key_names)
             namespace["_key_model"] = key_model
             namespace["_get_key"] = get_key
+            namespace["_key_map"] = {}
 
         return super().__new__(cls, name, bases, namespace, **kwargs)
+
+    def __init__(cls, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if hasattr(cls, "_key_model"):
+            cls._calculate_key_map()
 
     @staticmethod
     def _create_key_names_and_types(
@@ -193,8 +201,11 @@ class BaseReferrableModel(
     """
 
     _key_model: typing.ClassVar[typing.Type[pydantic.BaseModel]]
-    _key_names: typing.ClassVar[typing.Tuple[str]]
+    _key_names: typing.ClassVar[typing.Tuple[str, ...]]
     _get_key: typing.ClassVar[typing.Callable[["BaseReferrableModel"], typing.Any]]
+    _key_map: typing.ClassVar[
+        typing.Dict[str, typing.Union[str, typing.Tuple[str, ...]]]
+    ]
 
     def get_key(self) -> typing.Any:
         """Return the model key
@@ -204,6 +215,70 @@ class BaseReferrableModel(
             composite, return a tuple containing the parts.
         """
         return self._get_key()
+
+    @classmethod
+    def has_simple_key(cls) -> bool:
+        """Query if the model has a simple key
+
+        Returns:
+            ``True`` if the model has simple (single part) key, ``False``
+            otherwise
+        """
+        return len(cls._key_names) == 1
+
+    @classmethod
+    def key_to_path_params(cls, key: typing.Any) -> typing.Dict[str, typing.Any]:
+        """Convert model key to path parameters
+
+        This is a helper that can be used to convert a model key into a
+        dictionary containing the key parts. Hyperlinks are unwrapped (see
+        :ref:`href_as_key`).  It can be used to generate URLs in several HTTP
+        frameworks.
+
+        Arguments:
+            key: model key
+
+        Returns:
+            A dictionary mapping key names to key parts
+
+        """
+        if cls.has_simple_key():
+            key = (key,)
+        path_params = {}
+        for subkeys, subkey_names in zip(key, cls._key_map.values()):
+            subkeys = _unwrap_key(subkeys)
+            if isinstance(subkey_names, str):
+                path_params[subkey_names] = subkeys
+            else:
+                for subkey_name, subkey in zip(subkey_names, subkeys):
+                    path_params[subkey_name] = subkey
+        return path_params
+
+    @classmethod
+    def path_params_to_key(
+        cls, path_params: typing.Mapping[str, typing.Any]
+    ) -> typing.Any:
+        """Convert path parameters to model key
+
+        This helper can be used to convert path parameter mapping to model
+        key. It is the inverse of :meth:`key_to_path_params()`.
+
+        Arguments:
+            path_params: A mapping from key names to key parts
+
+        Returns:
+            Model key parsed from ``path_params``
+        """
+        subkeys = []
+        for subkey_names in cls._key_map.values():
+            if isinstance(subkey_names, str):
+                subkey = path_params[subkey_names]
+            else:
+                subkey = [path_params[subkey_name] for subkey_name in subkey_names]
+            subkeys.append(subkey)
+        if cls.has_simple_key():
+            subkeys = subkeys[0]
+        return cls.parse_as_key(subkeys)
 
     @staticmethod
     def try_parse_as(
@@ -236,3 +311,43 @@ class BaseReferrableModel(
     def update_forward_refs(cls, **localns: typing.Any) -> None:
         super().update_forward_refs(**localns)
         cls._key_model.update_forward_refs(**localns)
+        cls._calculate_key_map()
+
+    @classmethod
+    def _calculate_key_map(cls):
+        key_type = cls._key_model.__fields__["__root__"].outer_type_
+        key_types: typing.Dict[str, typing.Type]
+        if cls.has_simple_key():
+            key_name = cls._key_names[0]
+            key_types = {key_name: key_type}
+        else:
+            key_types = key_type.__annotations__
+
+        cls._key_map.clear()
+        for key_name, key_type in key_types.items():
+            target_key_name = key_name
+            # If key part is `Href`, we examine the target and unwrap it
+            if typing_extensions.get_origin(key_type) is Href:
+                (target_type,) = typing_extensions.get_args(key_type)
+                target_type_key_map = getattr(target_type, "_key_map")
+                if target_type_key_map:
+                    target_type_key_names = target_type_key_map.values()
+                    # This would get complicated: if the target of `Href` also
+                    # has complex key that needs unwrapping (indirection two
+                    # levels deep), we don't do that. It would be possible if
+                    # calculating key map was properly recursive, though.
+                    if not all(isinstance(name, str) for name in target_type_key_names):
+                        raise TypeError(
+                            "Href to models with complex key are not supported as model key. "
+                            f"{target_type!r} has key map {target_type_key_map!r}"
+                        )
+                    target_key_name = [
+                        f"{key_name}_{target_key_name}"
+                        for target_key_name in target_type_key_map.values()
+                    ]
+                    target_key_name = (
+                        tuple(target_key_name)
+                        if len(target_key_name) > 1
+                        else target_key_name[0]
+                    )
+            cls._key_map[key_name] = target_key_name

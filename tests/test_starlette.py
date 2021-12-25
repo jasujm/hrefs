@@ -77,10 +77,10 @@ async def get_comment(id: uuid.UUID):
     return Comment(id=id)
 
 
-@app.get("/articles/{article}/revisions/{revision}")
-async def get_revision(article: uuid.UUID, revision: int):
-    assert article == article_var.get()
-    return ArticleRevision(article=article, revision=revision)
+@app.get("/articles/{article_id}/revisions/{revision}")
+async def get_revision(article_id: uuid.UUID, revision: int):
+    assert article_id == article_var.get()
+    return ArticleRevision(article=article_id, revision=revision)
 
 
 client = fastapi.testclient.TestClient(app)
