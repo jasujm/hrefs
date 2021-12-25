@@ -97,15 +97,16 @@ Modifying the example from the previous section we have:
    def get_book(id: int):
        # implementation
 
-   @app.get("/books/{book}/pages/{page_number}", response_model=Book)
-   def get_page(book: int, page_number: int):
+   @app.get("/books/{book_id}/pages/{page_number}", response_model=Book)
+   def get_page(book_id: int, page_number: int):
        # implementation
 
-Note how the type of the ``book`` parameter is ``int`` rather than
-``Href[Book]`` in the signature of ``get_page``. This is because FastAPI doesn't
-know how to convert to/from non-elementary like ``Href`` in path parameters. So
-the key is automatically unwrapped in the router. That is not true for the
-models themselves, however:
+Note that the path parameter in the ``get_page`` route handler is called
+``book_id``, which is simply the hyperlink name ``book`` joined to ``id`` -- the
+model key of ``Book``. This is because FastAPI doesn't know how to convert
+to/from custom types like ``Href`` in path parameters. So the key type is
+automatically unwrapped and renamed when it appears in route handler. That is
+not true for the models themselves, however:
 
 .. code-block:: python
 
