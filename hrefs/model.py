@@ -43,10 +43,15 @@ class PrimaryKey:
     Arguments:
         type_: The underlying key type if the annotated primary key is
                itself a hyperlink. See :ref:`href_as_key`.
+        name: The name of the key. It may be distinct from the actual field
+              name, and will appear in path parameters etc.
     """
 
-    def __init__(self, type_: typing.Type = None):
+    __slots__ = ["type_", "name"]
+
+    def __init__(self, type_: typing.Type = None, name: str = None):
         self.type_ = type_
+        self.name = name
 
 
 # mypy doesn't like dynamic base classes:
@@ -59,6 +64,7 @@ _base2: typing.Any = type(Referrable)
 class _ReferrableModelKeyInfo(typing.NamedTuple):
     key_type: typing.Type
     should_unwrap_key: bool
+    field_name: str
 
 
 # pylint: disable=duplicate-bases,inconsistent-mro
@@ -67,21 +73,21 @@ class _ReferrableModelMeta(_base1, _base2):
         annotations = pydantic.typing.resolve_annotations(
             namespace.get("__annotations__", {}), namespace.get("__module__", None)
         )
-        key_names, key_types = cls._create_key_names_and_types(name, annotations)
-        assert len(key_names) == len(key_types)
+        key_names, key_infos = cls._create_key_names_and_types(name, annotations)
+        assert len(key_names) == len(key_infos)
 
-        if key_types:
-            if len(key_types) > 1:
+        if key_infos:
+            if len(key_infos) > 1:
                 (
                     key_model,
                     get_key,
-                ) = cls._create_key_converters_multiple_types(key_names, key_types)
+                ) = cls._create_key_converters_multiple_types(key_names, key_infos)
 
             else:
                 (
                     key_model,
                     get_key,
-                ) = cls._create_key_converters_single_type(key_names[0], key_types[0])
+                ) = cls._create_key_converters_single_type(key_infos[0])
 
             namespace["_key_names"] = tuple(key_names)
             namespace["_key_model"] = key_model
@@ -101,7 +107,7 @@ class _ReferrableModelMeta(_base1, _base2):
     ):
         key_names: typing.List[str] = []
         key_infos: typing.List[_ReferrableModelKeyInfo] = []
-        for key_name, annotation in all_annotations.items():
+        for field_name, annotation in all_annotations.items():
             if typing_extensions.get_origin(annotation) is typing_extensions.Annotated:
                 annotations = typing_extensions.get_args(annotation)
                 key_annotations = [
@@ -112,25 +118,32 @@ class _ReferrableModelMeta(_base1, _base2):
                 n_key_annotations = len(key_annotations)
                 if n_key_annotations > 1:
                     raise TypeError(
-                        f"{name}.{key_name}: Expected zero or one PrimaryKey annotations,"
+                        f"{name}.{field_name}: Expected zero or one PrimaryKey annotations,"
                         f" got {n_key_annotations}"
                     )
                 if n_key_annotations == 1:
-                    key_names.append(key_name)
                     origin_type = annotations[0]
-                    type_from_annotation = getattr(key_annotations[0], "type_", None)
+                    primary_key_annotation: PrimaryKey = key_annotations[0]
+                    # convert class into default instance
+                    if primary_key_annotation is PrimaryKey:
+                        primary_key_annotation = primary_key_annotation()
+                    type_from_annotation = primary_key_annotation.type_
+                    key_name_from_annotation = primary_key_annotation.name
                     key_type = type_from_annotation or origin_type
                     should_unwrap_key = (
                         typing_extensions.get_origin(origin_type) is Href
                         and type_from_annotation is not None
                     )
+                    key_names.append(key_name_from_annotation or field_name)
                     key_infos.append(
-                        _ReferrableModelKeyInfo(key_type, should_unwrap_key)
+                        _ReferrableModelKeyInfo(key_type, should_unwrap_key, field_name)
                     )
         if not key_names and _DEFAULT_KEY in all_annotations:
             key_names.append(_DEFAULT_KEY)
             key_infos.append(
-                _ReferrableModelKeyInfo(all_annotations[_DEFAULT_KEY], False)
+                _ReferrableModelKeyInfo(
+                    all_annotations[_DEFAULT_KEY], False, _DEFAULT_KEY
+                )
             )
         return key_names, key_infos
 
@@ -153,7 +166,7 @@ class _ReferrableModelMeta(_base1, _base2):
             return key_model(
                 __root__=[
                     _getattr_and_maybe_unwrap_key(
-                        self, key_name, key_info.should_unwrap_key
+                        self, key_info.field_name, key_info.should_unwrap_key
                     )
                     for key_name, key_info in zip(key_names, key_infos)
                 ]
@@ -162,15 +175,13 @@ class _ReferrableModelMeta(_base1, _base2):
         return key_model, get_key
 
     @classmethod
-    def _create_key_converters_single_type(
-        cls, key_name: str, key_info: _ReferrableModelKeyInfo
-    ):
+    def _create_key_converters_single_type(cls, key_info: _ReferrableModelKeyInfo):
         key_model = cls._create_key_model(key_info.key_type)
 
         def get_key(self):
             return key_model(
                 __root__=_getattr_and_maybe_unwrap_key(
-                    self, key_name, key_info.should_unwrap_key
+                    self, key_info.field_name, key_info.should_unwrap_key
                 )
             ).__root__
 
@@ -329,7 +340,7 @@ class BaseReferrableModel(
             # If key part is `Href`, we examine the target and unwrap it
             if typing_extensions.get_origin(key_type) is Href:
                 (target_type,) = typing_extensions.get_args(key_type)
-                target_type_key_map = getattr(target_type, "_key_map")
+                target_type_key_map = getattr(target_type, "_key_map", None)
                 if target_type_key_map:
                     target_type_key_names = target_type_key_map.values()
                     # This would get complicated: if the target of `Href` also

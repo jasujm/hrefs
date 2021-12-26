@@ -10,18 +10,18 @@ from util import hrefs
 
 
 class Book(BaseReferrableModel):
-    self: Annotated[Href[ForwardRef("Book")], PrimaryKey(type_=int)]
+    self: Annotated[Href[ForwardRef("Book")], PrimaryKey(type_=int, name="id")]
 
     @classmethod
     def key_to_url(cls, key) -> str:
         path_params = cls.key_to_path_params(key)
-        return f"/books/{path_params['self']}"
+        return f"/books/{path_params['id']}"
 
     @classmethod
     def url_to_key(cls, url: str) -> int:
-        path_params = {"self": int(url.split("/")[-1])}
+        path_params = {"id": int(url.split("/")[-1])}
         key = cls.path_params_to_key(path_params)
-        return path_params["self"]
+        return key
 
 
 class BookCover(BaseReferrableModel):
@@ -30,12 +30,12 @@ class BookCover(BaseReferrableModel):
     @classmethod
     def key_to_url(cls, key) -> str:
         path_params = cls.key_to_path_params(key)
-        return f"/books/{path_params['book_self']}/cover"
+        return f"/books/{path_params['book_id']}/cover"
 
     @classmethod
     def url_to_key(cls, url: str):
         parts = url.split("/")
-        path_params = {"book_self": int(parts[-2])}
+        path_params = {"book_id": int(parts[-2])}
         return cls.path_params_to_key(path_params)
 
 
@@ -46,12 +46,12 @@ class Page(BaseReferrableModel):
     @classmethod
     def key_to_url(cls, key) -> str:
         path_params = cls.key_to_path_params(key)
-        return f"/books/{path_params['book_self']}/pages/{path_params['page_number']}"
+        return f"/books/{path_params['book_id']}/pages/{path_params['page_number']}"
 
     @classmethod
     def url_to_key(cls, url: str):
         parts = url.split("/")
-        path_params = {"book_self": int(parts[-3]), "page_number": int(parts[-1])}
+        path_params = {"book_id": int(parts[-3]), "page_number": int(parts[-1])}
         return cls.path_params_to_key(path_params)
 
 
@@ -61,13 +61,13 @@ class Bookmark(BaseReferrableModel):
     @classmethod
     def key_to_url(cls, key) -> str:
         path_params = cls.key_to_path_params(key)
-        return f"/books/{path_params['page_book_self']}/pages/{path_params['page_page_number']}/bookmark"
+        return f"/books/{path_params['page_book_id']}/pages/{path_params['page_page_number']}/bookmark"
 
     @classmethod
     def url_to_key(cls, url: str):
         parts = url.split("/")
         path_params = {
-            "page_book_self": int(parts[-4]),
+            "page_book_id": int(parts[-4]),
             "page_page_number": int(parts[-2]),
         }
         return cls.path_params_to_key(path_params)
@@ -91,8 +91,8 @@ def test_self_href_from_url(url):
 
 
 @given(book_hrefs)
-def test_parse_href_key_from_referred_model(book_self):
-    book = Book(self=book_self)
+def test_parse_href_key_from_referred_model(book_id):
+    book = Book(self=book_id)
     href = pydantic.parse_obj_as(Href[BookCover], book)
     assert href.key == book.self
     assert href.url == BookCover.key_to_url(book.self)
@@ -114,8 +114,8 @@ def test_parse_href_key_from_referred_url(url):
 
 
 @given(book_hrefs, st.integers())
-def test_parse_composite_href_key_from_referred_model(book_self, page_number):
-    book = Book(self=book_self)
+def test_parse_composite_href_key_from_referred_model(book_id, page_number):
+    book = Book(self=book_id)
     href = pydantic.parse_obj_as(Href[Page], (book, page_number))
     assert href.key == (book.self, page_number)
     assert href.url == Page.key_to_url((book.self, page_number))
@@ -141,8 +141,8 @@ def test_parse_composite_href_key_from_referred_url(url):
 
 
 @given(book_hrefs, st.integers())
-def test_parse_indirect_href_key_from_referred_model(book_self, page_number):
-    page = Page(book=book_self, page_number=page_number)
+def test_parse_indirect_href_key_from_referred_model(book_id, page_number):
+    page = Page(book=book_id, page_number=page_number)
     href = pydantic.parse_obj_as(Href[Bookmark], page)
     assert href.key == pydantic.parse_obj_as(Href[Page], (page.book, page_number))
     assert href.url == Bookmark.key_to_url((page.book, page_number))

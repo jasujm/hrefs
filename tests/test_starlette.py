@@ -23,7 +23,9 @@ class Comment(ReferrableModel):
 
 
 class Article(ReferrableModel):
-    id: uuid.UUID
+    self: Annotated[
+        Href[typing.ForwardRef("Article")], PrimaryKey(type_=uuid.UUID, name="id")
+    ]
     comments: typing.List[Href[Comment]]
     current_revision: Href[typing.ForwardRef("ArticleRevision")]
 
@@ -59,7 +61,7 @@ app = fastapi.FastAPI(middleware=[fastapi.middleware.Middleware(HrefMiddleware)]
 async def get_article(id: uuid.UUID):
     assert id == article_var.get()
     return Article(
-        id=id,
+        self=id,
         comments=comments_var.get(),
         current_revision=(id, revision_var.get()),
     )
@@ -110,7 +112,7 @@ def test_parse_key_to_href(article_id, revision, comment_ids):
 @given(st.uuids(), st.integers(), st.lists(st.uuids(), min_size=1))
 def test_parse_url_to_href(article_id, revision, comment_ids):
     def assert_article(article: Article):
-        assert article.id == article_id
+        assert article.self.key == article_id
         assert [comment_href.key for comment_href in article.comments] == comment_ids
         _article, _revision = article.current_revision.key
         assert _article.key == article_id
@@ -121,7 +123,7 @@ def test_parse_url_to_href(article_id, revision, comment_ids):
         "/articles",
         data=json.dumps(
             dict(
-                id=str(article_id),
+                self=str(article_id),
                 comments=[f"http://testclient/comments/{id}" for id in comment_ids],
                 current_revision=f"http://testclient/articles/{article_id}/revisions/{revision}",
             )
@@ -136,7 +138,7 @@ def test_parse_invalid_url_fails(article_id, comment_ids):
         "/articles",
         data=json.dumps(
             dict(
-                id=str(article_id),
+                self=str(article_id),
                 comments=[
                     f"http://testclient/not/a/real/route/{id}" for id in comment_ids
                 ],
