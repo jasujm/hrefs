@@ -114,10 +114,13 @@ not true for the models themselves, however:
    # will produce something like:
    book=Href(key=1, url="http://example.com/api/books/1") page_number=1
 
-Self references
-...............
+.. _self_hrefs:
 
-It is even possible to have hyperlink to the model itself as a primary key:
+Self hyperlinks
+---------------
+
+It is possible to have hyperlink to the model itself as a primary key. Expanding
+the idea in :ref:`href_as_key`, we can have:
 
 .. code-block:: python
 
@@ -155,3 +158,40 @@ parsed model is still a hyperlink:
    print(Book(self=1))
    # will produce something like:
    self=Href(key=1, url="http://example.com/api/books/1")
+
+Having both ``id`` and ``self``
+...............................
+
+It is of course possible to have ``self`` hyperlink without it being a primary
+key. A common pattern in APIs is to include both ``id`` primary key, and the
+``self`` hyperlink. A recipe to achieve that is:
+
+.. code-block:: python
+
+   from typing import ForwardRef
+   from hrefs import Href
+   from hrefs.starlette import ReferrableModel
+   from pydantic import root_validator
+
+   class Book(ReferrableModel):
+       id: int
+       self: Href[ForwardRef("Book")]
+
+       @root_validator(pre=True)
+       def populate_self(cls, values):
+           values["self"] = values["id"]
+           return values
+
+   Book.update_forward_refs()
+
+   book = Book(id=123)
+   # book.self is automatically populated from id
+
+Note that ``id`` will become primary key by the virtue of being called
+``id``. In the example above, ``self`` is just a regular field that happens to
+be a hyperlink to the ``Book`` model itself. The ``Book.populate_self()`` runs
+on the whole model before any other validation takes place, and takes care of
+populating the ``self`` field from ``id``.
+
+The ``PrimaryKey`` annotation with type is no longer needed, since there is
+nothing circular in the key type (compare this to :ref:`self_hrefs`).
