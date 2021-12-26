@@ -126,7 +126,7 @@ class _ReferrableModelMeta(_base1, _base2):
                     primary_key_annotation: PrimaryKey = key_annotations[0]
                     # convert class into default instance
                     if primary_key_annotation is PrimaryKey:
-                        primary_key_annotation = primary_key_annotation()
+                        primary_key_annotation = PrimaryKey()
                     type_from_annotation = primary_key_annotation.type_
                     key_name_from_annotation = primary_key_annotation.name
                     key_type = type_from_annotation or origin_type
