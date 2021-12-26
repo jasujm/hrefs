@@ -117,12 +117,6 @@ not true for the models themselves, however:
 Self references
 ...............
 
-.. warning::
-
-   **WIP!** This doesn't actually work yet. There is name conflict with the
-   ``self`` being used as path parameter *and* the ``self`` argument for
-   methods.
-
 It is even possible to have hyperlink to the model itself as a primary key:
 
 .. code-block:: python
@@ -132,12 +126,12 @@ It is even possible to have hyperlink to the model itself as a primary key:
    from hrefs.starlette import ReferrableModel
 
    class Book(ReferrableModel):
-       self: Annotated[Href[ForwardRef("Book")], PrimaryKey(type_=int)]
+       self: Annotated[Href[ForwardRef("Book")], PrimaryKey(type_=int, name="id")]
 
    Book.update_forward_refs()
 
-   @app.get("/books/{self}", response_model=Book)
-   def get_book(self: int):
+   @app.get("/books/{id}", response_model=Book)
+   def get_book(id: int):
        # implementation
 
 Note the need to use ``ForwardRef("Book")`` inside the body of the class, and
@@ -147,9 +141,14 @@ now includes the ``type_`` argument to indicate that the underlying key type is
 underlying key of the model, since the definition of the primary key would be
 circular.
 
-The ``self`` parameter in the route handler is again unwrapped (see
-:ref:`href_as_key`), but the ``self`` field of a parsed model is still a
-hyperlink:
+Note that the key name in the route handler is again unwrapped -- and called
+``id`` instead of ``self``. This is because the ``name`` argument of the
+``PrimaryKey`` annotation can be used to rename a key. It is not advisable to
+have ``self`` as an argument name in route handler, because it creates ambiguity
+with the ``self`` parameter Python uses in instance methods.
+
+Although the key is unwrapped in the route handler, the ``self`` field of a
+parsed model is still a hyperlink:
 
 .. code-block:: python
 
