@@ -100,3 +100,26 @@ def test_multiple_primary_key_annotations_fails():
             @staticmethod
             def url_to_key(url: str):
                 ...
+
+
+def test_href_forward_reference():
+    class MyModel(BaseReferrableModel):
+        id: int
+        self: Href[typing.ForwardRef("MyModel")]
+
+        @pydantic.root_validator(pre=True)
+        def populate_self(cls, values):
+            values["self"] = values["id"]
+            return values
+
+        @staticmethod
+        def key_to_url(key: int) -> None:
+            return f"/{key}"
+
+        @staticmethod
+        def url_to_key(url: str):
+            ...
+
+    MyModel.update_forward_refs()
+
+    assert MyModel(id=1).self == Href(key=1, url="/1")
