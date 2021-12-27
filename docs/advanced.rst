@@ -201,3 +201,28 @@ populating the ``self`` field from ``id``.
 
 The ``PrimaryKey`` annotation with type is no longer needed, since there is
 nothing circular in the key type (compare this to :ref:`self_hrefs`).
+
+Inheritance
+-----------
+
+It is possible for a referrable model to inherit another:
+
+.. code-block:: python
+
+   class Book(ReferrableModel):
+       id: int
+       title: str
+
+       class Config:
+           details_view = "get_book"
+
+   class Textbook(Book):
+       subject: str
+
+The derived model ``Textbook`` inherits the key ``id`` and details view
+``"get_book"`` from its parent ``Book``.
+
+Primary key annotations are not composable across inheritance, i.e. it is not
+possible to define a part of the model key in the parent and another part in the
+derived model. Model key definitions --- whether implicit or explicit --- should
+only exist in one class of the inheritance tree.
