@@ -105,7 +105,7 @@ def test_multiple_primary_key_annotations_fails():
 def test_href_forward_reference():
     class MyModel(BaseReferrableModel):
         id: int
-        self: Href[typing.ForwardRef("MyModel")]
+        self: Href["MyModel"]
 
         @pydantic.root_validator(pre=True)
         def populate_self(cls, values):
