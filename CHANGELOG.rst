@@ -1,5 +1,8 @@
-Unreleased
-----------
+Version 0.3
+-----------
+
+Date
+  2021-12-27
 
 Added
   * ``tox`` for test automation
