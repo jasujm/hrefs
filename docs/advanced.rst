@@ -86,6 +86,9 @@ Modifying the example from the previous section we have:
    class Book(ReferrableModel):
        id: int
 
+       class Config:
+           details_view = "get_book"
+
    class Page(ReferrableModel):
        book: Annotated[Href[Book], PrimaryKey]
        page_number: Annotated[int, PrimaryKey]
@@ -130,6 +133,9 @@ the idea in :ref:`href_as_key`, we can have:
 
    class Book(ReferrableModel):
        self: Annotated[Href["Book"], PrimaryKey(type_=int, name="id")]
+
+       class Config:
+           details_view = "get_book"
 
    Book.update_forward_refs()
 
