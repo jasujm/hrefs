@@ -124,12 +124,12 @@ the idea in :ref:`href_as_key`, we can have:
 
 .. code-block:: python
 
-   from typing import Annotated, ForwardRef
+   from typing import Annotated
    from hrefs import Href, PrimaryKey
    from hrefs.starlette import ReferrableModel
 
    class Book(ReferrableModel):
-       self: Annotated[Href[ForwardRef("Book")], PrimaryKey(type_=int, name="id")]
+       self: Annotated[Href["Book"], PrimaryKey(type_=int, name="id")]
 
    Book.update_forward_refs()
 
@@ -137,9 +137,10 @@ the idea in :ref:`href_as_key`, we can have:
    def get_book(id: int):
        # implementation
 
-Note the need to use ``ForwardRef("Book")`` inside the body of the class, and
-updating the forward references afterward. Also the ``PrimaryKey`` annotation
-now includes the ``type_`` argument to indicate that the underlying key type is
+Note the need to use forward reference ``"Book"`` inside the body of the class,
+and updating the forward references afterward. That is because the name ``Book``
+is not yet available in the class body. Also the ``PrimaryKey`` annotation now
+includes the ``type_`` argument to indicate that the underlying key type is
 ``int``. Without that annotation the library would have no way of knowing the
 underlying key of the model, since the definition of the primary key would be
 circular.
@@ -168,14 +169,13 @@ key. A common pattern in APIs is to include both ``id`` primary key, and the
 
 .. code-block:: python
 
-   from typing import ForwardRef
    from hrefs import Href
    from hrefs.starlette import ReferrableModel
    from pydantic import root_validator
 
    class Book(ReferrableModel):
        id: int
-       self: Href[ForwardRef("Book")]
+       self: Href["Book"]
 
        @root_validator(pre=True)
        def populate_self(cls, values):

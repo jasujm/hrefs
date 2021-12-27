@@ -1,5 +1,3 @@
-from typing import ForwardRef
-
 from hypothesis import given, strategies as st
 import pydantic
 import pytest
@@ -10,7 +8,7 @@ from util import hrefs
 
 
 class Book(BaseReferrableModel):
-    self: Annotated[Href[ForwardRef("Book")], PrimaryKey(type_=int, name="id")]
+    self: Annotated[Href["Book"], PrimaryKey(type_=int, name="id")]
 
     @classmethod
     def key_to_url(cls, key) -> str:

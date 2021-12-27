@@ -1,4 +1,4 @@
-from typing import List, Dict, ForwardRef
+from typing import List, Dict
 import uuid
 
 from fastapi import FastAPI, HTTPException, Response
@@ -15,7 +15,7 @@ class BookCreate(BaseModel):
 
 
 class Book(ReferrableModel):
-    self: Annotated[Href[ForwardRef("Book")], PrimaryKey(type_=uuid.UUID, name="id")]
+    self: Annotated[Href["Book"], PrimaryKey(type_=uuid.UUID, name="id")]
     title: str
 
     class Config:
@@ -30,7 +30,7 @@ class LibraryCreate(BaseModel):
 
 
 class Library(ReferrableModel):
-    self: Annotated[Href[ForwardRef("Library")], PrimaryKey(type_=uuid.UUID, name="id")]
+    self: Annotated[Href["Library"], PrimaryKey(type_=uuid.UUID, name="id")]
     books: List[Href[Book]]
 
     class Config:

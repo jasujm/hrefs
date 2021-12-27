@@ -23,11 +23,9 @@ class Comment(ReferrableModel):
 
 
 class Article(ReferrableModel):
-    self: Annotated[
-        Href[typing.ForwardRef("Article")], PrimaryKey(type_=uuid.UUID, name="id")
-    ]
+    self: Annotated[Href["Article"], PrimaryKey(type_=uuid.UUID, name="id")]
     comments: typing.List[Href[Comment]]
-    current_revision: Href[typing.ForwardRef("ArticleRevision")]
+    current_revision: Href["ArticleRevision"]
 
     class Config:
         details_view = "get_article"

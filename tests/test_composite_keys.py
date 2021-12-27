@@ -1,4 +1,4 @@
-from typing import ForwardRef, List, Tuple
+from typing import List, Tuple
 
 from hypothesis import given, strategies as st
 import pydantic
