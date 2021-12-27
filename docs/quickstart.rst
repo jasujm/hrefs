@@ -143,21 +143,21 @@ library knows how to parse either!
 
 .. code-block:: console
 
-   $ http POST localhost:8000/books id=1 title='My first book'
+   $ http POST localhost:8000/books title='My first book'
    HTTP/1.1 201 Created
    Transfer-Encoding: chunked
-   location: http://localhost:8000/books/1
+   location: http://localhost:8000/books/fb69a5d5-b956-4189-8e3e-89f001815bec
    server: uvicorn
 
 
-   $ http POST localhost:8000/libraries id=1 books:='["http://localhost:8000/books/1"]'
+   $ http POST localhost:8000/libraries books:='["http://localhost:8000/books/fb69a5d5-b956-4189-8e3e-89f001815bec"]'
    HTTP/1.1 201 Created
    Transfer-Encoding: chunked
-   location: http://localhost:8000/libraries/1
+   location: http://localhost:8000/libraries/50c224ff-c9f4-4186-8a05-4999f522ea67
    server: uvicorn
 
 
-   $ http GET http://localhost:8000/libraries/1
+   $ http GET http://localhost:8000/libraries/50c224ff-c9f4-4186-8a05-4999f522ea67
    HTTP/1.1 200 OK
    content-length: 50
    content-type: application/json
@@ -165,9 +165,9 @@ library knows how to parse either!
 
    {
        "books": [
-           "http://localhost:8000/books/1"
+           "http://localhost:8000/books/fb69a5d5-b956-4189-8e3e-89f001815bec"
        ],
-       "id": 1
+       "self": "http://localhost:8000/libraries/50c224ff-c9f4-4186-8a05-4999f522ea67"
    }
 
 Using ``hrefs`` with Starlette
