@@ -50,4 +50,5 @@ docs = [
 ]
 
 [project.urls]
-Home = "https://github.com/jasujm/hrefs"
+Source = "https://github.com/jasujm/hrefs"
+Documentation = "https://hrefs.readthedocs.io/"

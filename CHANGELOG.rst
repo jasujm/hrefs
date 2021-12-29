@@ -1,3 +1,16 @@
+Version 0.3.1
+-------------
+
+Data
+  2021-12-29
+
+Added
+  * Updated documentation about inheritance
+
+Fixed
+  * Minor documentation fixes
+  * Add package metadata back to PKG-INFO
+
 Version 0.3
 -----------
 
