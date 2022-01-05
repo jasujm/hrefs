@@ -305,9 +305,10 @@ class BaseReferrableModel(
             ``value`` parsed as ``model``, or ``None`` on validation error
         """
         try:
-            return model.parse_obj(value).__root__
+            parsed_value = model.parse_obj(value)
         except pydantic.ValidationError:
             return None
+        return getattr(parsed_value, "__root__")
 
     @classmethod
     def parse_as_key(cls, value: typing.Any) -> typing.Optional[typing.Any]:
