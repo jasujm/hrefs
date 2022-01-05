@@ -130,7 +130,7 @@ def test_derived_model_inherits_referrable_properties(key, purr_frequency):
     class Cat(Pet):
         purr_frequency: float
 
-    cat = Cat(id=key, my_id=key, purr_frequency=purr_frequency)
+    cat = Cat(id=key, purr_frequency=purr_frequency)
     href = pydantic.parse_obj_as(Href[Cat], cat)
     assert href.key == key
     assert href.url == Pet.key_to_url(key)
