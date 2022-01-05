@@ -25,10 +25,11 @@ API reference
 
    api
 
-History
-=======
+Miscellaneous
+=============
 
 .. toctree::
    :maxdepth: 2
 
+   contributing
    changelog
