@@ -1,6 +1,9 @@
 Unreleased
 ----------
 
+Added
+  * Support Python 3.10
+
 Fixed
   * Require ``pydantic`` version 1.8 or later, since 1.7 doesn't work with the
     library
