@@ -43,6 +43,7 @@ test = [
   "black",
   "pylint>=2.12",
   "mypy",
+  "packaging",
 ]
 
 doc = [

@@ -1,6 +1,7 @@
 import json
 import typing
 
+import packaging.version as version
 from hypothesis import given, strategies as st
 import pydantic
 import pytest
@@ -8,6 +9,13 @@ from typing_extensions import Annotated
 
 from hrefs import Href, BaseReferrableModel, PrimaryKey
 from util import hrefs
+
+
+def _pydantic_does_not_support_field_in_modify_schema():
+    try:
+        return version.parse(pydantic.__version__) < version.Version("1.9")
+    except AttributeError:
+        return True
 
 
 class Pet(BaseReferrableModel):
@@ -136,6 +144,10 @@ def test_derived_model_inherits_referrable_properties(key, purr_frequency):
     assert href.url == Pet.key_to_url(key)
 
 
+@pytest.mark.skipif(
+    _pydantic_does_not_support_field_in_modify_schema(),
+    reason="pydantic does not support field argument in __modify_schema__",
+)
 def test_href_schema():
     owner_schema = Owner.schema()
     assert owner_schema["properties"]["pets"] == {

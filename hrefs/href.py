@@ -49,8 +49,8 @@ class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
       referrable type having ``UUID`` key and ``AnyHttpUrl`` as URL type.
 
     * When used as abstract base class, the subclass needs to implement at least
-      :func:`get_key()` to convert between model and key, and
-      :func:`key_to_url()` and :func:`url_to_key()` to specify the conversions
+      :meth:`get_key()` to convert between model and key, and
+      :meth:`key_to_url()` and :meth:`url_to_key()` to specify the conversions
       between the key and URL representations. The return types of the functions
       should be annotated to make them available for parsing and serialization
       at runtime. Here is an example:
@@ -83,7 +83,7 @@ class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
         """Attempt to parse ``value`` as key
 
         The default implementation reads the return type annotation of
-        ``url_to_key()``, and tries to convert ``value``, swallowing
+        :meth:`url_to_key()`, and tries to convert ``value``, swallowing
         ``TypeError`` and ``ValueError``.
 
         Return:
@@ -98,7 +98,7 @@ class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
         """Attempt to parse ``value`` as URL
 
         The default implementation reads the return type annotation of
-        ``key_to_url()``, and tries to convert ``value``, swallowing
+        :meth:`key_to_url()`, and tries to convert ``value``, swallowing
         ``TypeError`` and ``ValueError``.
 
         Return:
@@ -129,15 +129,18 @@ class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
         """Modify schema of :class:`Href` to this type
 
         The default implementation reads the return type annotation of
-        ``key_to_url()``, and uses its schema as ``Href`` schema.
+        :meth:`key_to_url()`, and uses its schema as ``Href`` schema.
 
         Arguments:
             schema: the schema being modified
             field: the ``pydantic`` ``ModelField`` object of the ``Href``
+
         """
         del field  # unused
         annotation = _get_return_annotation(cls.key_to_url)
-        schema_model = pydantic.create_model("schema_model", __root__=(annotation, ...))
+        schema_model: typing.Type[pydantic.BaseModel] = pydantic.create_model(
+            "schema_model", __root__=(annotation, ...)
+        )
         new_schema = schema_model.schema()
         # remove properties pydantic populates by default
         for key_to_remove in "allOf", "$ref":
