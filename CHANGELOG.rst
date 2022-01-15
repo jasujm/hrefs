@@ -4,6 +4,9 @@ Unreleased
 Added
   * Support Python 3.10
 
+Changed
+  * Use URL type in ``Href`` schema if using ``pydantic`` version 1.9 or later
+
 Fixed
   * Require ``pydantic`` version 1.8 or later, since 1.7 doesn't work with the
     library

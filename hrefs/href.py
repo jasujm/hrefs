@@ -6,6 +6,7 @@ import operator
 import typing
 import warnings
 
+import pydantic
 import typing_extensions
 
 T = typing.TypeVar("T")
@@ -17,13 +18,18 @@ if typing.TYPE_CHECKING:
     import pydantic.fields
 
 
-def _try_convert(
-    meth: typing.Callable[..., T], value: typing.Any
-) -> typing.Optional[T]:
+def _get_return_annotation(meth: typing.Callable) -> typing.Type:
     return_annotation = inspect.signature(meth).return_annotation
     assert (
         return_annotation != inspect.Signature.empty
     ), f"return annotation of {meth!r} unexpectedly empty"
+    return return_annotation
+
+
+def _try_convert(
+    meth: typing.Callable[..., T], value: typing.Any
+) -> typing.Optional[T]:
+    return_annotation = _get_return_annotation(meth)
     try:
         return return_annotation(value)
     except (TypeError, ValueError):
@@ -113,6 +119,32 @@ class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
     def url_to_key(cls, url: UrlType) -> KeyType:
         """Convert url to key"""
         raise NotImplementedError()
+
+    @classmethod
+    def __modify_href_schema__(
+        cls,
+        schema: typing.MutableMapping[str, typing.Any],
+        field: "pydantic.fields.ModelField",
+    ):
+        """Modify schema of :class:`Href` to this type
+
+        The default implementation reads the return type annotation of
+        ``key_to_url()``, and uses its schema as ``Href`` schema.
+
+        Arguments:
+            schema: the schema being modified
+            field: the ``pydantic`` ``ModelField`` object of the ``Href``
+        """
+        del field  # unused
+        annotation = _get_return_annotation(cls.key_to_url)
+        schema_model = pydantic.create_model("schema_model", __root__=(annotation, ...))
+        new_schema = schema_model.schema()
+        # remove properties pydantic populates by default
+        for key_to_remove in "allOf", "$ref":
+            schema.pop(key_to_remove, None)
+        # retain the original title
+        new_schema.pop("title", None)
+        schema.update(new_schema)
 
 
 ReferrableType = typing.TypeVar("ReferrableType", bound=Referrable)
@@ -209,14 +241,13 @@ class Href(typing.Generic[ReferrableType]):
         raise TypeError(f"Could not convert {value!r} to href")
 
     @staticmethod
-    def __modify_schema__(schema: typing.MutableMapping[str, typing.Any]):
-        # By default pydantic will use the schema of `ReferrableModel`. That is
-        # wrong for `Href`, but without runtime type of `ReferrableModel` or
-        # being extremely hacky, I can't do much beyond clearing the schema spec
-        # (that translates to "any" type in OpenAPI).
-        # See: https://github.com/jasujm/hrefs/issues/3
-        schema.clear()
-        schema["title"] = "Href"
+    def __modify_schema__(
+        schema: typing.MutableMapping[str, typing.Any],
+        field: typing.Optional["pydantic.fields.ModelField"] = None,
+    ):
+        if field and field.sub_fields:
+            referred: typing.Type[ReferrableType] = field.sub_fields[0].type_
+            referred.__modify_href_schema__(schema, field)
 
     @classmethod
     def _from_key(cls, key: KeyType, model_type: typing.Type[ReferrableType]):

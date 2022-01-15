@@ -134,3 +134,14 @@ def test_derived_model_inherits_referrable_properties(key, purr_frequency):
     href = pydantic.parse_obj_as(Href[Cat], cat)
     assert href.key == key
     assert href.url == Pet.key_to_url(key)
+
+
+def test_href_schema():
+    owner_schema = Owner.schema()
+    assert owner_schema["properties"]["pets"] == {
+        "title": "Pets",
+        "type": "array",
+        "items": {
+            "type": "string",
+        },
+    }
