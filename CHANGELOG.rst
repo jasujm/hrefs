@@ -1,5 +1,8 @@
-Unreleased
-----------
+Version 0.4
+-----------
+
+Date
+  2022-01-17
 
 Added
   * Support Python 3.10
@@ -14,7 +17,7 @@ Fixed
 Version 0.3.1
 -------------
 
-Data
+Date
   2021-12-29
 
 Added
