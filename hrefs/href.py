@@ -186,6 +186,9 @@ class Href(typing.Generic[ReferrableType]):
             and self._url == other._url
         )
 
+    def __hash__(self):
+        return hash((Href, self._key, self._url))
+
     @property
     def key(self):
         """The key of the referred object"""

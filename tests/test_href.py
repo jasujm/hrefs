@@ -2,7 +2,7 @@ import json
 import typing
 
 import packaging.version as version
-from hypothesis import given, strategies as st
+from hypothesis import given, strategies as st, assume
 import pydantic
 import pytest
 from typing_extensions import Annotated
@@ -157,3 +157,15 @@ def test_href_schema():
             "type": "string",
         },
     }
+
+
+@given(pet_hrefs)
+def test_hash_of_equivalent_hrefs_matches(href):
+    other_href = Href(key=href.key, url=href.url)
+    assert hash(href) == hash(other_href)
+
+
+@given(pet_hrefs, pet_hrefs)
+def test_hash_of_different_hrefs_differs(href, other_href):
+    assume(href != other_href)
+    assert hash(href) != hash(other_href)

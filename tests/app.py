@@ -14,7 +14,7 @@ import uuid
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware import Middleware
-from pydantic import BaseModel
+from pydantic import BaseModel, parse_obj_as
 from typing_extensions import Annotated
 
 from hrefs import Href, PrimaryKey
@@ -82,8 +82,8 @@ class Library(ReferrableModel, _LibraryBase):
 
 Library.update_forward_refs()
 
-books: Dict[uuid.UUID, Book] = {}
-libraries: Dict[uuid.UUID, Library] = {}
+books: Dict[Href[Book], Book] = {}
+libraries: Dict[Href[Library], Library] = {}
 
 app = FastAPI(middleware=[Middleware(HrefMiddleware)])
 
@@ -91,7 +91,8 @@ app = FastAPI(middleware=[Middleware(HrefMiddleware)])
 @app.get("/libraries/{id}", response_model=Library)
 def get_library(id: uuid.UUID):
     """Retrieve a library identified by `id`"""
-    library = libraries.get(id)
+    href = parse_obj_as(Href[Library], id)
+    library = libraries.get(href)
     if not library:
         raise HTTPException(status_code=404, detail="Library not found")
     return library
@@ -110,12 +111,12 @@ def post_library(library: LibraryCreate):
     header.
 
     """
-    if any(book.key not in books for book in library.books):
+    if any(book not in books for book in library.books):
         raise HTTPException(
             status_code=400, detail="Trying to add nonexisting book to library"
         )
     new_library = Library(self=uuid.uuid4(), **library.dict())
-    libraries[new_library.self.key] = new_library
+    libraries[new_library.self] = new_library
     return Response(
         status_code=201,
         headers={"Location": new_library.self.url},
@@ -125,7 +126,8 @@ def post_library(library: LibraryCreate):
 @app.get("/books/{id}", response_model=Book)
 def get_book(id: uuid.UUID):
     """Retrieve a book identified by `id`"""
-    book = books.get(id)
+    href = parse_obj_as(Href[Book], id)
+    book = books.get(href)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
     return book
@@ -138,5 +140,5 @@ def post_book(book: BookCreate):
     The identity will be automatically generated, and returned in the `Location`
     header."""
     new_book = Book(self=uuid.uuid4(), **book.dict())
-    books[new_book.self.key] = new_book
+    books[new_book.self] = new_book
     return Response(status_code=201, headers={"Location": new_book.self.url})

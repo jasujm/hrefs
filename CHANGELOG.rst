@@ -1,3 +1,9 @@
+Unreleased
+----------
+
+Added
+  * Implement ``Href.__hash__()``
+
 Version 0.4
 -----------
 
