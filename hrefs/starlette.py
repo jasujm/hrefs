@@ -73,9 +73,7 @@ class ReferrableModel(BaseReferrableModel):
         request = _request_var.get()
         details_view = cls._get_details_view()
         kwargs = cls.key_to_path_params(key)
-        return pydantic.parse_obj_as(
-            pydantic.AnyHttpUrl, request.url_for(details_view, **kwargs)
-        )
+        return _URL_MODEL.parse_obj(request.url_for(details_view, **kwargs)).__root__  # type: ignore
 
     @classmethod
     def url_to_key(cls, url: pydantic.AnyHttpUrl) -> typing.Any:
