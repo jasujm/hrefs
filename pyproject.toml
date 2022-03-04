@@ -55,5 +55,8 @@ doc = [
 Source = "https://github.com/jasujm/hrefs"
 Documentation = "https://hrefs.readthedocs.io/"
 
+[project.entry-points.hypothesis]
+_ = "hrefs._hypothesis_plugin:_hypothesis_setup_hook"
+
 [tool.mypy]
 ignore_missing_imports = true

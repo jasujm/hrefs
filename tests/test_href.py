@@ -8,7 +8,6 @@ import pytest
 from typing_extensions import Annotated
 
 from hrefs import Href, BaseReferrableModel, PrimaryKey
-from util import hrefs
 
 
 def _pydantic_does_not_support_field_in_modify_schema():
@@ -34,10 +33,7 @@ class Owner(pydantic.BaseModel):
     pets: typing.List[Href[Pet]]
 
 
-pet_hrefs = hrefs(Pet, st.integers())
-
-
-@given(pet_hrefs)
+@given(st.from_type(Href[Pet]))
 def test_parse_href(href):
     assert pydantic.parse_obj_as(Href[Pet], href) is href
 
@@ -73,7 +69,7 @@ def test_parse_href_without_parameter_fails():
         pydantic.parse_obj_as(Href, 123)
 
 
-@given(st.builds(Owner, pets=st.lists(pet_hrefs)))
+@given(st.builds(Owner))
 def test_json_encode(owner):
     owner_json = json.loads(owner.json())
     assert owner_json["pets"] == [pet.url for pet in owner.pets]
@@ -159,13 +155,31 @@ def test_href_schema():
     }
 
 
-@given(pet_hrefs)
+@given(st.from_type(Href[Pet]))
 def test_hash_of_equivalent_hrefs_matches(href):
     other_href = Href(key=href.key, url=href.url)
     assert hash(href) == hash(other_href)
 
 
-@given(pet_hrefs, pet_hrefs)
+@given(st.from_type(Href[Pet]), st.from_type(Href[Pet]))
 def test_hash_of_different_hrefs_differs(href, other_href):
     assume(href != other_href)
     assert hash(href) != hash(other_href)
+
+
+@given(st.from_type(Href[Pet]))
+def test_hypothesis_plugin(href):
+    assert isinstance(href, Href)
+    assert href.url == Pet.key_to_url(href.key)
+
+
+@pytest.mark.filterwarnings("ignore::hypothesis.errors.NonInteractiveExampleWarning")
+def test_hypothesis_plugin_plain_href_fails():
+    with pytest.raises(ValueError):
+        st.from_type(Href).example()
+
+
+@pytest.mark.filterwarnings("ignore::hypothesis.errors.NonInteractiveExampleWarning")
+def test_hypothesis_plugin_href_to_non_referrable_type_fails():
+    with pytest.raises(ValueError):
+        st.from_type(Href[int]).example()

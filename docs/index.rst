@@ -16,6 +16,7 @@ User guide
 
    quickstart
    advanced
+   testing
 
 API reference
 =============

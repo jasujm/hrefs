@@ -4,7 +4,6 @@ import pytest
 from typing_extensions import Annotated
 
 from hrefs import Href, BaseReferrableModel, PrimaryKey
-from util import hrefs
 
 
 class Book(BaseReferrableModel):
@@ -73,8 +72,6 @@ class Bookmark(BaseReferrableModel):
 
 Book.update_forward_refs()
 
-book_hrefs = hrefs(Book, st.integers())
-
 
 @given(st.integers())
 def test_self_href_from_key(key):
@@ -88,7 +85,7 @@ def test_self_href_from_url(url):
     assert book.self == Href(key=Book.url_to_key(url), url=url)
 
 
-@given(book_hrefs)
+@given(st.from_type(Href[Book]))
 def test_parse_href_key_from_referred_model(book_id):
     book = Book(self=book_id)
     href = pydantic.parse_obj_as(Href[BookCover], book)
@@ -111,7 +108,7 @@ def test_parse_href_key_from_referred_url(url):
     assert href.url == url
 
 
-@given(book_hrefs, st.integers())
+@given(st.from_type(Href[Book]), st.integers())
 def test_parse_composite_href_key_from_referred_model(book_id, page_number):
     book = Book(self=book_id)
     href = pydantic.parse_obj_as(Href[Page], (book, page_number))
@@ -138,7 +135,7 @@ def test_parse_composite_href_key_from_referred_url(url):
 # hrefs as model keys
 
 
-@given(book_hrefs, st.integers())
+@given(st.from_type(Href[Book]), st.integers())
 def test_parse_indirect_href_key_from_referred_model(book_id, page_number):
     page = Page(book=book_id, page_number=page_number)
     href = pydantic.parse_obj_as(Href[Bookmark], page)

@@ -3,6 +3,7 @@ Unreleased
 
 Added
   * Implement ``Href.__hash__()``
+  * ``hypothesis`` build strategy for hyperlinks
 
 Version 0.4
 -----------
