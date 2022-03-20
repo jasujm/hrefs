@@ -121,7 +121,7 @@ def test_href_forward_reference():
             return values
 
         @staticmethod
-        def key_to_url(key: int) -> None:
+        def key_to_url(key: int):
             return f"/{key}"
 
         @staticmethod
