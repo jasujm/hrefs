@@ -45,6 +45,8 @@ hyperlinks in `FastAPI <https://fastapi.tiangolo.com/>`_ and `Starlette
 <https://www.starlette.io/>`_ applications. See :ref:`quickstart` for a full
 working example how to use these classes.
 
+.. autoclass:: ReferrableModel
+
 .. autoclass:: HrefMiddleware
 
-.. autoclass:: ReferrableModel
+.. autofunction:: href_context

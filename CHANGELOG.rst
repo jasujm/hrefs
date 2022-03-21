@@ -4,6 +4,8 @@ Unreleased
 Added
   * Implement ``Href.__hash__()``
   * ``hypothesis`` build strategy for hyperlinks
+  * ``hrefs.starlette.href_context()`` for setting things other than Starlette
+    requests as hyperlink context
 
 Version 0.4
 -----------

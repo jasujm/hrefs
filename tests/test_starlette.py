@@ -7,12 +7,13 @@ import uuid
 import fastapi
 import fastapi.middleware
 import fastapi.testclient
-from hypothesis import given, strategies as st
+from hypothesis import given, strategies as st, settings, HealthCheck
 import pydantic
+import pytest
 from typing_extensions import Annotated
 
 from hrefs import Href, PrimaryKey
-from hrefs.starlette import ReferrableModel, HrefMiddleware
+from hrefs.starlette import ReferrableModel, HrefMiddleware, href_context
 
 
 class Comment(ReferrableModel):
@@ -55,6 +56,12 @@ save_article_var: contextvars.ContextVar[
 app = fastapi.FastAPI(middleware=[fastapi.middleware.Middleware(HrefMiddleware)])
 
 
+@pytest.fixture
+def appcontext():
+    with href_context(app, base_url="http://testserver"):
+        yield
+
+
 @app.get("/articles/{id}", response_model=Article)
 async def get_article(id: uuid.UUID):
     assert id == article_var.get()
@@ -81,6 +88,16 @@ async def get_comment(id: uuid.UUID):
 async def get_revision(article_id: uuid.UUID, revision: int):
     assert article_id == article_var.get()
     return ArticleRevision(article=article_id, revision=revision)
+
+
+@app.websocket("/comment")
+async def echo_comments(websocket: fastapi.WebSocket):
+    await websocket.accept()
+    comment_id = await websocket.receive_json()
+    with href_context(websocket):
+        comment = pydantic.parse_obj_as(Href[Comment], comment_id)
+    await websocket.send_json(comment.url)
+    await websocket.close()
 
 
 client = fastapi.testclient.TestClient(app)
@@ -122,8 +139,8 @@ def test_parse_url_to_href(article_id, revision, comment_ids):
         data=json.dumps(
             dict(
                 self=str(article_id),
-                comments=[f"http://testclient/comments/{id}" for id in comment_ids],
-                current_revision=f"http://testclient/articles/{article_id}/revisions/{revision}",
+                comments=[f"http://testserver/comments/{id}" for id in comment_ids],
+                current_revision=f"http://testserver/articles/{article_id}/revisions/{revision}",
             )
         ),
     )
@@ -138,9 +155,42 @@ def test_parse_invalid_url_fails(article_id, comment_ids):
             dict(
                 self=str(article_id),
                 comments=[
-                    f"http://testclient/not/a/real/route/{id}" for id in comment_ids
+                    f"http://testserver/not/a/real/route/{id}" for id in comment_ids
                 ],
             )
         ),
     )
     assert response.status_code == fastapi.status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+@given(st.uuids())
+@settings(deadline=1000)
+def test_websocket_as_href_context(comment_id):
+    with client.websocket_connect("/comment") as websocket:
+        websocket.send_json(str(comment_id))
+        response = websocket.receive_json()
+    assert response == f"http://testserver/comments/{comment_id}"
+
+
+@given(comment_id=st.uuids())
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_app_as_href_context_parse_key(appcontext, comment_id):
+    comment = pydantic.parse_obj_as(Href[Comment], comment_id)
+    assert comment == Href(
+        key=comment_id, url=f"http://testserver/comments/{comment_id}"
+    )
+
+
+@given(comment_id=st.uuids())
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_app_as_href_context_parse_url(appcontext, comment_id):
+    comment_url = f"http://testserver/comments/{comment_id}"
+    comment = pydantic.parse_obj_as(Href[Comment], comment_url)
+    assert comment == Href(key=comment_id, url=comment_url)
+
+
+@given(st.uuids())
+def test_app_as_href_context_without_base_url_fails(comment_id):
+    with pytest.raises(RuntimeError):
+        with href_context(app):
+            pydantic.parse_obj_as(Href[Comment], comment_id)
