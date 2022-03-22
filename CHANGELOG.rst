@@ -1,5 +1,8 @@
-Unreleased
-----------
+Version 0.5
+-----------
+
+Date
+  2022-03-22
 
 Added
   * Implement ``Href.__hash__()``
