@@ -1,5 +1,8 @@
-Unreleased
-----------
+Version 0.5.1
+-------------
+
+Date
+  2022-03-23
 
 Fixed
   * `.readthedocs.yaml` file syntax
