@@ -1,3 +1,9 @@
+Unreleased
+----------
+
+Fixed
+  * `.readthedocs.yaml` file syntax
+
 Version 0.5
 -----------
 
