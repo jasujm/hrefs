@@ -1,4 +1,4 @@
-"""Model references"""
+"""The core hyperlink types"""
 
 import abc
 import inspect
@@ -89,7 +89,6 @@ class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
         Return:
             ``value`` parameter converted to key type, or ``None`` if unable to
             parse
-
         """
         return _try_convert(cls.url_to_key, value)
 
@@ -102,9 +101,8 @@ class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
         ``TypeError`` and ``ValueError``.
 
         Return:
-            ``value`` parameter converted to URL type, or ``None`` if unable to
-            parse
-
+            ``value`` parameter converted to URL type, or ``None`` if unable
+            to parse
         """
         return _try_convert(cls.key_to_url, value)
 
@@ -134,7 +132,6 @@ class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
         Arguments:
             schema: the schema being modified
             field: the ``pydantic`` ``ModelField`` object of the ``Href``
-
         """
         del field  # unused
         annotation = _get_return_annotation(cls.key_to_url)
@@ -157,12 +154,11 @@ class Href(typing.Generic[ReferrableType]):
     """Hypertext reference to another model
 
     The class is generic and can be annotated by a type implementing the
-    :class:`Referrable` protocol. If ``Book`` is assumed to be a type
+    :class:`Referrable` protocol.  If ``Book`` is assumed to be a type
     implementing :class:`Referrable`, then ``Href[Book]`` represents a hyperlink
-    to a book. This mechanism primarily exists for the benefit of pydantic, and
+    to a book.  This mechanism primarily exists for the benefit of pydantic, and
     allows the validation to know what kind of reference it is working with (see
     :ref:`quickstart`).
-
     """
 
     __slots__ = ["_key", "_url"]
@@ -228,7 +224,6 @@ class Href(typing.Generic[ReferrableType]):
           TypeError: If the :class:`Href` model isn't properly annotated, or if
             ``value`` doesn't conform to any of the recognized types
           Exception: In addition passes any exceptions happening during conversions
-
         """
         if not field.sub_fields:
             raise TypeError("Expected sub field")

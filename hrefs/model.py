@@ -1,4 +1,9 @@
-"""Base models for referring and referrable types"""
+"""Referrable models base
+
+The models defined in this module are the basic building blocks of referrable
+types. Integration to particular frameworks are defined in the framework
+specific module.
+"""
 
 import typing
 
@@ -251,7 +256,6 @@ class BaseReferrableModel(
 
         Returns:
             A dictionary mapping key names to key parts
-
         """
         if cls.has_simple_key():
             key = (key,)
