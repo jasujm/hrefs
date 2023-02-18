@@ -5,7 +5,7 @@ Date
   2023-02-18
 
 Added
- * Support Python 3.10
+ * Support Python 3.11
 
 Fixed
  * Proofread documentation
