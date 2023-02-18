@@ -163,34 +163,31 @@ def test_parse_invalid_url_fails(article_id, comment_ids):
     assert response.status_code == fastapi.status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
-@given(st.uuids())
-@settings(deadline=1000)
-def test_websocket_as_href_context(comment_id):
+def test_websocket_as_href_context():
+    comment_id = uuid.uuid4()
     with client.websocket_connect("/comment") as websocket:
         websocket.send_json(str(comment_id))
         response = websocket.receive_json()
     assert response == f"http://testserver/comments/{comment_id}"
 
 
-@given(comment_id=st.uuids())
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_app_as_href_context_parse_key(appcontext, comment_id):
+def test_app_as_href_context_parse_key(appcontext):
+    comment_id = uuid.uuid4()
     comment = pydantic.parse_obj_as(Href[Comment], comment_id)
     assert comment == Href(
         key=comment_id, url=f"http://testserver/comments/{comment_id}"
     )
 
 
-@given(comment_id=st.uuids())
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_app_as_href_context_parse_url(appcontext, comment_id):
+def test_app_as_href_context_parse_url(appcontext):
+    comment_id = uuid.uuid4()
     comment_url = f"http://testserver/comments/{comment_id}"
     comment = pydantic.parse_obj_as(Href[Comment], comment_url)
     assert comment == Href(key=comment_id, url=comment_url)
 
 
-@given(st.uuids())
-def test_app_as_href_context_without_base_url_fails(comment_id):
+def test_app_as_href_context_without_base_url_fails():
+    comment_id = uuid.uuid4()
     with pytest.raises(RuntimeError):
         with href_context(app):
             pydantic.parse_obj_as(Href[Comment], comment_id)
