@@ -40,15 +40,15 @@ class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
     """Protocol that needs to be implemented by a target of :class:`Href`
 
     The class can either be used as a protocol (see `PEP 544
-    <https://www.python.org/dev/peps/pep-0544/>`_), or abstract base class.
+    <https://www.python.org/dev/peps/pep-0544/>`_) or an abstract base class.
 
-    * When used as protocol in type annotations, :class:`Referrable` is
+    * When used as a protocol in type annotations, :class:`Referrable` is
       parametrized by key and URL types, respectively. For example
       ``Referrable[int, str]`` annotates a referrable type having ``int`` as key
       and ``str`` as URL. ``Referrable[UUID, AnyHttpUrl]`` annotates a
       referrable type having ``UUID`` key and ``AnyHttpUrl`` as URL type.
 
-    * When used as abstract base class, the subclass needs to implement at least
+    * When used as an abstract base class, the subclass needs to implement at least
       :meth:`get_key()` to convert between model and key, and
       :meth:`key_to_url()` and :meth:`url_to_key()` to specify the conversions
       between the key and URL representations. The return types of the functions
@@ -158,9 +158,10 @@ class Href(typing.Generic[ReferrableType]):
     The class is generic and can be annotated by a type implementing the
     :class:`Referrable` protocol.  If ``Book`` is assumed to be a type
     implementing :class:`Referrable`, then ``Href[Book]`` represents a hyperlink
-    to a book.  This mechanism primarily exists for the benefit of pydantic, and
-    allows the validation to know what kind of reference it is working with (see
-    :ref:`quickstart`).
+    to a book.
+
+    The annotations are compatible with pydantic and allow it to know what kind
+    of reference it is working with (see :ref:`quickstart`).
     """
 
     __slots__ = ["_key", "_url"]
@@ -205,7 +206,7 @@ class Href(typing.Generic[ReferrableType]):
     def validate(cls, value, field: "pydantic.fields.ModelField"):
         """Parse ``value`` into hyperlink
 
-        This method mainly exists for integration to pydantic. A user rarely
+        This method is mainly intended for the pydantic integration. A user rarely
         needs to call it directly.
 
         Arguments:

@@ -31,7 +31,8 @@ def href_context(request_or_app: RequestOrApp, *, base_url: BaseUrl = None):
     """Context manager that sets hyperlink context
 
     Makes ``request_or_app`` responsible for converting between keys and URLs in
-    hypperlinks to :class:`ReferrableModel`. The context can either be:
+    hyperlinks to :class:`ReferrableModel`. The context can be either of the
+    following:
 
     * A Starlette ``HTTPConnection`` -- that is HTTP request or websocket
 
@@ -91,10 +92,10 @@ def href_context(request_or_app: RequestOrApp, *, base_url: BaseUrl = None):
 
 
 class HrefMiddleware(BaseHTTPMiddleware):
-    """Middleware for resolving hrefs
+    """Middleware for resolving hyperlinks
 
-    This middleware needs to be added to the middleware stack of the Starlette
-    app using the :class:`ReferrableModel`.
+    This middleware needs to be added to the middleware stack of a Starlette app
+    intending to use this library.
     """
 
     async def dispatch(self, request: Request, call_next):
@@ -106,8 +107,9 @@ class HrefMiddleware(BaseHTTPMiddleware):
 class ReferrableModel(BaseReferrableModel):
     """Referrable model with Starlette integration
 
-    This class implements the :class:`hrefs.BaseReferrableModel` with the
-    following features:
+    This class is the preferable base class of models in a Starlette/FastAPI
+    application. More specifically, it extends the
+    :class:`hrefs.BaseReferrableModel` class with the following features:
 
     * Its key type is inferred from type annotations as in the base class
 
@@ -116,11 +118,11 @@ class ReferrableModel(BaseReferrableModel):
     * It uses a context (app or request) to automatically generate and resolve
       URLs based on routes defined in the application.
 
-    The preferrable way to provide :class:`ReferrableModel` its context is by
-    adding :class:`HrefMiddleware` to the middleware stack of the
-    application. :func:`href_context()` can alternatively be used when using the
-    middleware is not possible (for example in websocket handlers or when using
-    hyperlinks outside of request handlers).
+    The preferable way to provide :class:`ReferrableModel` its context is by
+    adding :class:`HrefMiddleware` to the middleware stack of the application.
+    :func:`href_context()` can alternatively be used when using the middleware
+    is not possible (for example in websocket handlers or when using hyperlinks
+    outside of request handlers).
 
     Here is a minimal example using route called ``"my_view"`` to convert
     to/from URLs:

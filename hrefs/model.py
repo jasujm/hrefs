@@ -30,7 +30,7 @@ def _getattr_and_maybe_unwrap_key(obj: typing.Any, name: str, unwrap_key: bool):
 
 
 class PrimaryKey:
-    """Annotation declaring a field in :class:`BaseReferrableModel` as key
+    """Annotation declaring a field in :class:`BaseReferrableModel` as a primary key
 
     ``PrimaryKey`` can be used the following way:
 
@@ -205,19 +205,19 @@ class _ReferrableModelMeta(_base1, _base2):
 class BaseReferrableModel(
     pydantic.BaseModel, Referrable, metaclass=_ReferrableModelMeta
 ):
-    """Referrable model with pydantic integration
+    """Referrable pydantic model
 
     A subclass of both :class:`pydantic.BaseModel` and
     :class:`hrefs.Referrable`.  It should be used as the base class of any
     pydantic model that will be used as target of :class:`hrefs.Href`.
 
-    ``BaseReferrableModel`` provides implementation on :func:`get_key()` and
-    :func:`parse_as_key()` based on its field annotations. By default the model
+    ``BaseReferrableModel`` provides implementations of :func:`get_key()` and
+    :func:`parse_as_key()` based on field annotations. By default, the model
     key is the ``id`` field (if it exists), but that can be changed by using
     :class:`PrimaryKey` to annotate other field(s).
 
-    When using referrable models with FastAPI or Starlette in particular,
-    :class:`hrefs.starlette.ReferrableModel` is more natural base.
+    When using referrable models with FastAPI or Starlette,
+    :class:`hrefs.starlette.ReferrableModel` is the preferable base class.
     """
 
     _key_model: typing.ClassVar[typing.Type[pydantic.BaseModel]]
@@ -232,7 +232,7 @@ class BaseReferrableModel(
 
         Returns:
             The model key based on the field annotations. If the key is
-            composite, return a tuple containing the parts.
+            composite, returns a tuple containing the parts.
         """
         return self._get_key()
 
@@ -323,7 +323,7 @@ class BaseReferrableModel(
         """Parse ``value`` as the key type
 
         The type of the model key based on the field annotations. Either a
-        single type, or (in case of composite key), a tuple of the parts.
+        single type, or (in the case of a composite key), a tuple of the parts.
         """
         return cls.try_parse_as(cls._key_model, value)
 
