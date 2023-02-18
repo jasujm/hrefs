@@ -1,3 +1,12 @@
+Version 0.6.1
+-------------
+
+Date
+  2023-02-18
+
+Fixed
+ * Documentation proofreading
+
 Version 0.6
 -----------
 
