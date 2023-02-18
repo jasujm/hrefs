@@ -1,3 +1,17 @@
+Version 0.6
+-----------
+
+Date
+  2023-02-18
+
+Added
+ * Support Python 3.10
+
+Fixed
+ * Proofread documentation
+ * Various ``mypy`` and ``pylint`` issues introduced by newer versions of the
+   packages
+
 Version 0.5.1
 -------------
 
