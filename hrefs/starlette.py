@@ -97,8 +97,7 @@ class HrefMiddleware(BaseHTTPMiddleware):
     app using the :class:`ReferrableModel`.
     """
 
-    @staticmethod
-    async def dispatch(request: Request, call_next):
+    async def dispatch(self, request: Request, call_next):
         with href_context(request):
             return await call_next(request)
 

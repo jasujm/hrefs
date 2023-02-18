@@ -159,7 +159,7 @@ def test_parse_indirect_href_key_from_referred_url(url):
     assert href.url == url
 
 
-def test_deep_indirection_is_not_supported():
+def test_deep_indirection_is_not_supported() -> None:
     with pytest.raises(TypeError, match="not supported"):
 
         class SomeModelWithDeepIndirection(BaseReferrableModel):

@@ -10,8 +10,8 @@ import pydantic
 import typing_extensions
 
 T = typing.TypeVar("T")
-KeyType = typing.TypeVar("KeyType")
-UrlType = typing.TypeVar("UrlType")
+KeyType = typing.TypeVar("KeyType")  # pylint: disable=invalid-name
+UrlType = typing.TypeVar("UrlType")  # pylint: disable=invalid-name
 
 
 if typing.TYPE_CHECKING:
@@ -147,7 +147,9 @@ class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
         schema.update(new_schema)
 
 
-ReferrableType = typing.TypeVar("ReferrableType", bound=Referrable)
+ReferrableType = typing.TypeVar(  # pylint: disable=invalid-name
+    "ReferrableType", bound=Referrable
+)
 
 
 class Href(typing.Generic[ReferrableType]):

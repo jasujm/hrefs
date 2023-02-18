@@ -54,7 +54,11 @@ class PrimaryKey:
 
     __slots__ = ["type_", "name"]
 
-    def __init__(self, type_: typing.Type = None, name: str = None):
+    def __init__(
+        self,
+        type_: typing.Optional[typing.Type] = None,
+        name: typing.Optional[str] = None,
+    ):
         self.type_ = type_
         self.name = name
 
@@ -330,7 +334,7 @@ class BaseReferrableModel(
         cls._calculate_key_map()
 
     @classmethod
-    def _calculate_key_map(cls):
+    def _calculate_key_map(cls) -> None:
         key_type = cls._key_model.__fields__["__root__"].outer_type_
         key_types: typing.Dict[str, typing.Type]
         if cls.has_simple_key():
@@ -341,7 +345,7 @@ class BaseReferrableModel(
 
         cls._key_map.clear()
         for key_name, key_type in key_types.items():
-            target_key_name = key_name
+            target_key_name: typing.Union[str, typing.Tuple[str, ...]] = key_name
             # If key part is `Href`, we examine the target and unwrap it
             if typing_extensions.get_origin(key_type) is Href:
                 (target_type,) = typing_extensions.get_args(key_type)
@@ -357,13 +361,13 @@ class BaseReferrableModel(
                             "Href to models with complex key are not supported as model key. "
                             f"{target_type!r} has key map {target_type_key_map!r}"
                         )
-                    target_key_name = [
+                    target_key_name_list = [
                         f"{key_name}_{target_key_name}"
                         for target_key_name in target_type_key_map.values()
                     ]
                     target_key_name = (
-                        tuple(target_key_name)
-                        if len(target_key_name) > 1
-                        else target_key_name[0]
+                        tuple(target_key_name_list)
+                        if len(target_key_name_list) > 1
+                        else target_key_name_list[0]
                     )
             cls._key_map[key_name] = target_key_name

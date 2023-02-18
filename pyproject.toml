@@ -17,6 +17,7 @@ classifiers = [
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
   "Topic :: Internet",
   "Topic :: Internet :: WWW/HTTP",
   "Topic :: Software Development",
@@ -36,14 +37,13 @@ requires-python=">=3.7"
 [project.optional-dependencies]
 test = [
   "tox>=3.24",
-  "pytest>=6.2",
-  "hypothesis>=6.24",
-  "fastapi",
-  "requests",
-  "black",
-  "pylint>=2.12",
-  "mypy",
-  "packaging",
+  "pytest>=7.2",
+  "hypothesis>=6.68",
+  "fastapi>=0.92",
+  "black>=23.1",
+  "pylint>=2.16",
+  "mypy>=1.0",
+  "httpx>=0.23",
 ]
 
 doc = [

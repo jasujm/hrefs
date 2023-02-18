@@ -7,7 +7,7 @@ import uuid
 import fastapi
 import fastapi.middleware
 import fastapi.testclient
-from hypothesis import given, strategies as st, settings, HealthCheck
+from hypothesis import given, strategies as st
 import pydantic
 import pytest
 from typing_extensions import Annotated
@@ -136,7 +136,7 @@ def test_parse_url_to_href(article_id, revision, comment_ids):
     save_article_var.set(assert_article)
     response = client.post(
         "/articles",
-        data=json.dumps(
+        content=json.dumps(
             dict(
                 self=str(article_id),
                 comments=[f"http://testserver/comments/{id}" for id in comment_ids],
@@ -151,7 +151,7 @@ def test_parse_url_to_href(article_id, revision, comment_ids):
 def test_parse_invalid_url_fails(article_id, comment_ids):
     response = client.post(
         "/articles",
-        data=json.dumps(
+        content=json.dumps(
             dict(
                 self=str(article_id),
                 comments=[

@@ -76,7 +76,7 @@ def test_json_encode(owner):
 
 
 @given(st.integers())
-def test_primary_key_annotation(my_id):
+def test_primary_key_annotation(my_id) -> None:
     class MyModel(BaseReferrableModel):
         my_id: Annotated[int, PrimaryKey]
 
@@ -91,7 +91,7 @@ def test_primary_key_annotation(my_id):
     assert MyModel(my_id=my_id).get_key() == my_id
 
 
-def test_multiple_primary_key_annotations_fails():
+def test_multiple_primary_key_annotations_fails() -> None:
     with pytest.raises(TypeError):
 
         class MyModel(BaseReferrableModel):
@@ -106,7 +106,7 @@ def test_multiple_primary_key_annotations_fails():
                 ...
 
 
-def test_href_forward_reference():
+def test_href_forward_reference() -> None:
     class MyModel(BaseReferrableModel):
         id: int
         self: Href["MyModel"]
@@ -130,7 +130,7 @@ def test_href_forward_reference():
 
 
 @given(st.integers(), st.floats())
-def test_derived_model_inherits_referrable_properties(key, purr_frequency):
+def test_derived_model_inherits_referrable_properties(key, purr_frequency) -> None:
     class Cat(Pet):
         purr_frequency: float
 
@@ -144,7 +144,7 @@ def test_derived_model_inherits_referrable_properties(key, purr_frequency):
     _pydantic_does_not_support_field_in_modify_schema(),
     reason="pydantic does not support field argument in __modify_schema__",
 )
-def test_href_schema():
+def test_href_schema() -> None:
     owner_schema = Owner.schema()
     assert owner_schema["properties"]["pets"] == {
         "title": "Pets",
