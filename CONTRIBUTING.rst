@@ -6,7 +6,7 @@ Would you like to contribute? Great!
 Feedback
 --------
 
-Please leave feedback, bug reports and feature requests into the `issue tracker
+Please leave feedback, bug reports, and feature requests in the `issue tracker
 in GitHub <https://github.com/jasujm/hrefs/issues>`_.
 
 Pull requests

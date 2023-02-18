@@ -41,12 +41,12 @@ Generating URLs for hyperlinks in FastAPI/Starlette normally relies on
 :class:`hrefs.starlette.HrefMiddleware` to expose the request context to the
 library. This is usually no issue in request handlers, but may become an
 obstacle when trying to generate hyperlinks with the ``@given``
-decorator. That's because the decorator applies to the test case defined in
-module level --- nowhere near the request handler!
+decorator. That's because the decorator applies to the test case defined at the
+module level --- not inside a request handler!
 
 You can use :func:`hrefs.starlette.href_context()` to set the application under
-test to be the hyperlink context. Wrapping this in fixture enables ``@given`` to
-do its magic for hyperlinks. Here is an example using `pytest
+test to be the hyperlink context. Wrapping this in a fixture enables ``@given``
+to do its magic for hyperlinks. Here is an example using `pytest
 <https://docs.pytest.org/>`_:
 
 .. code-block:: python

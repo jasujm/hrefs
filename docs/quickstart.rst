@@ -9,8 +9,8 @@ Using ``hrefs`` with FastAPI
 Setting up the application
 ..........................
 
-The :mod:`hrefs` library resolves URLs automatically. In order for that to work,
-it only needs the :class:`hrefs.starlette.HrefMiddleware` to be included in the
+The :mod:`hrefs` library resolves URLs automatically. For that to work, it only
+needs the :class:`hrefs.starlette.HrefMiddleware` to be included in the
 middleware stack:
 
 .. code-block:: python
@@ -48,14 +48,14 @@ To make a model target for hrefs, it needs to:
 
 * Inherit from :class:`hrefs.starlette.ReferrableModel`.
 
-* Have configuration called ``details_view`` naming the route that will return
+* Have a configuration called ``details_view`` naming the route that will return
   the details of the referrable model. The URLs will be built by reversed
   routing, using the *primary key* of the model as parameters.
 
 * Have a primary key used as a router parameter in ``details_view``. In the
   above example ``Book.id`` is the primary key. This may or may not correspond
   to the primary key in a database, but ``hrefs`` really isn't concerned the
-  database layer. By default the primary key is the ``id`` field, but can be
+  database layer. By default, the primary key is the ``id`` field but can be
   configured. See :ref:`configure_key` for details.
 
 .. note::
@@ -89,7 +89,7 @@ Defining a relationship to the referrable model
    def post_library(library: Library, request: Request):
        if any(book.get_key() not in books for book in library.books):
            raise HTTPException(
-               status_code=400, detail="Trying to add nonexisting book to library"
+               status_code=400, detail="Trying to add a nonexistent book to library"
            )
        libraries[library.id] = library
        return Response(
@@ -101,7 +101,7 @@ An annotated type ``Href[Book]`` is used to declare a hyperlink to ``Book`` ---
 or any other subclass of :class:`hrefs.Referrable` for that matter!
 
 The :class:`hrefs.Href` class integrates to `pydantic
-<https://pydantic-docs.helpmanual.io/>`_. When parsing the ``books`` field , the
+<https://pydantic-docs.helpmanual.io/>`_. When parsing the ``books`` field, the
 following values can automatically be converted to hrefs:
 
 * Another :class:`hrefs.Href` instance.
@@ -114,8 +114,7 @@ following values can automatically be converted to hrefs:
 * A URL that can be matched to the route named in the ``details_view`` of the
   referred object type (in this case ``"get_library"``).
 
-When serializing :class:`hrefs.Href` objects to JSON (FastAPI serializes the
-object returned from the route handler behind the scenes!), it will be
+When ``pydantic`` serializes :class:`hrefs.Href` objects to JSON, it is
 represented by URL.
 
 A full working example
@@ -127,7 +126,7 @@ The ``tests/`` folder contains a minimal toy application demonstrating how the
 .. literalinclude:: ../tests/app.py
    :language: python
 
-You can run the test application in your favorite ASGI server:
+You can run the test application on your favorite ASGI server:
 
 .. code-block:: console
 
@@ -138,7 +137,7 @@ You can run the test application in your favorite ASGI server:
    INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 
 Then use your favorite HTTP client and start creating libraries. You can use
-either IDs or URL to refer to the books in the second ``POST`` request --- the
+either IDs or URLs to refer to the books in the second ``POST`` request --- the
 library knows how to parse either!
 
 .. code-block:: console
@@ -174,16 +173,15 @@ Using ``hrefs`` with Starlette
 ------------------------------
 
 While the library was written with `FastAPI <https://fastapi.tiangolo.com/>`_ in
-mind, the integration doesn't actually depend on FastAPI, only `pydantic
+mind, the integration doesn't depend on FastAPI, only `pydantic
 <https://pydantic-docs.helpmanual.io/>`_ and `Starlette
 <https://www.starlette.io/>`_. You can perfectly well write Starlette apps
 containing hrefs. You just need to ensure that:
 
-* For each :class:`hrefs.starlette.ReferrableModel` there is a named
+* For each subclass of :class:`hrefs.starlette.ReferrableModel` there is a named
   route matching the ``details_view`` configuration.
 
-* The :class:`hrefs.starlette.HrefMiddleware` is added as middleware to the
-  application.
+* :class:`hrefs.starlette.HrefMiddleware` is added to the middleware stack.
 
 * In the responses, the pydantic models containing references are explicitly
   serialized using ``model.json()`` method.

@@ -2,7 +2,7 @@ Hyperlinks for pydantic models
 ==============================
 
 In a typical web application relationships between resources are modeled by
-primary and foreign keys in a database (integers, UUIDs etc.). The most natural
+primary and foreign keys in a database (integers, UUIDs, etc.). The most natural
 way to represent relationships in REST APIs is by URLs to the related resources
 (explained in `this blog
 <https://cloud.google.com/blog/products/application-development/api-design-why-you-should-use-links-not-keys-to-represent-relationships-in-apis>`_).
@@ -30,8 +30,8 @@ and URLs:
        return Library(books=[1,2,3]).json()
 
 ``hrefs`` was written especially with `FastAPI <https://fastapi.tiangolo.com/>`_
-in mind, but integrates to any application or framework using pydantic to parse
-and serialize models.
+in mind, but integrates into any application or framework using pydantic to
+parse and serialize models.
 
 Check out the `documentation <https://hrefs.readthedocs.io/>`_ to get started!
 

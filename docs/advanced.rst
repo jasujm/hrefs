@@ -65,7 +65,7 @@ When using composite keys with :ref:`FastAPI or Starlette models
            details_view = "get_page"
 
    @app.get("/books/{book_id}/pages/{page_number}", response_model=Page)
-   def get_page(id: int):
+   def get_page(book_id: int, page_number: int):
        # implementation
 
 .. _href_as_key:
@@ -108,8 +108,8 @@ Note that the path parameter in the ``get_page`` route handler is called
 ``book_id``, which is simply the hyperlink name ``book`` joined to ``id`` -- the
 model key of ``Book``. This is because FastAPI doesn't know how to convert
 to/from custom types like ``Href`` in path parameters. So the key type is
-automatically unwrapped and renamed when it appears in route handler. That is
-not true for the models themselves, however:
+automatically unwrapped and renamed when it appears in route handler. In the
+model itself the name and type of ``book`` are preserved:
 
 .. code-block:: python
 
@@ -122,8 +122,8 @@ not true for the models themselves, however:
 Self hyperlinks
 ---------------
 
-It is possible to have hyperlink to the model itself as a primary key. Expanding
-the idea in :ref:`href_as_key`, we can have:
+It is possible to have a hyperlink to the model itself as a primary
+key. Expanding the idea in :ref:`href_as_key`, we can have:
 
 .. code-block:: python
 
@@ -144,21 +144,21 @@ the idea in :ref:`href_as_key`, we can have:
        # implementation
 
 Note the need to use forward reference ``"Book"`` inside the body of the class,
-and updating the forward references afterward. That is because the name ``Book``
+and update the forward references afterward. That is because the name ``Book``
 is not yet available in the class body. Also the ``PrimaryKey`` annotation now
 includes the ``type_`` argument to indicate that the underlying key type is
-``int``. Without that annotation the library would have no way of knowing the
+``int``. Without that annotation, the library would have no way of knowing the
 underlying key of the model, since the definition of the primary key would be
 circular.
 
 Note that the key name in the route handler is again unwrapped -- and called
 ``id`` instead of ``self``. This is because the ``name`` argument of the
-``PrimaryKey`` annotation can be used to rename a key. It is not advisable to
-have ``self`` as an argument name in route handler, because it creates ambiguity
+``PrimaryKey`` annotation was used to rename a key. It is not advisable to have
+``self`` as an argument name in a route handler, because it creates ambiguity
 with the ``self`` parameter Python uses in instance methods.
 
-Although the key is unwrapped in the route handler, the ``self`` field of a
-parsed model is still a hyperlink:
+The unwrapping only applies to the route handler. In the model itself the name
+and type of ``self`` are preserved:
 
 .. code-block:: python
 
@@ -169,9 +169,9 @@ parsed model is still a hyperlink:
 Having both ``id`` and ``self``
 ...............................
 
-It is of course possible to have ``self`` hyperlink without it being a primary
-key. A common pattern in APIs is to include both ``id`` primary key, and the
-``self`` hyperlink. A recipe to achieve that is:
+It is possible to have ``self`` hyperlink without it being a primary key. A
+common pattern in APIs is to include both ``id`` primary key and the ``self``
+hyperlink. A recipe to achieve that is:
 
 .. code-block:: python
 
@@ -193,13 +193,13 @@ key. A common pattern in APIs is to include both ``id`` primary key, and the
    book = Book(id=123)
    # book.self is automatically populated from id
 
-Note that ``id`` will become primary key by the virtue of being called
+Note that ``id`` will become the primary key by the virtue of being called
 ``id``. In the example above, ``self`` is just a regular field that happens to
 be a hyperlink to the ``Book`` model itself. The ``Book.populate_self()`` runs
 on the whole model before any other validation takes place, and takes care of
 populating the ``self`` field from ``id``.
 
-The ``PrimaryKey`` annotation with type is no longer needed, since there is
+The ``PrimaryKey`` annotation with type is no longer needed since there is
 nothing circular in the key type (compare this to :ref:`self_hrefs`).
 
 Inheritance

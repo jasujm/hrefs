@@ -42,8 +42,8 @@ Starlette integration
 
 The main motivation for writing the library was to make it easy to use
 hyperlinks in `FastAPI <https://fastapi.tiangolo.com/>`_ and `Starlette
-<https://www.starlette.io/>`_ applications. See :ref:`quickstart` for a full
-working example how to use these classes.
+<https://www.starlette.io/>`_ applications. See :ref:`quickstart` for a fully
+working example of how to use these classes.
 
 .. autoclass:: ReferrableModel
 
