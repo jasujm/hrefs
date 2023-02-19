@@ -1,3 +1,14 @@
+Unreleased
+----------
+
+Changed
+ * Simplified type hints and removed bunch of code requiring suppression of
+   ``pylint`` and ``mypy`` warnings
+
+Deprecated
+ * ``hrefs.Referrable`` can no longer be used as `PEP 544 protocol
+   <https://www.python.org/dev/peps/pep-0544/>`
+
 Version 0.6.1
 -------------
 

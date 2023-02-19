@@ -7,7 +7,6 @@ import typing
 import warnings
 
 import pydantic
-import typing_extensions
 
 T = typing.TypeVar("T")
 KeyType = typing.TypeVar("KeyType")  # pylint: disable=invalid-name
@@ -36,41 +35,30 @@ def _try_convert(
         return None
 
 
-class Referrable(typing_extensions.Protocol[KeyType, UrlType]):
-    """Protocol that needs to be implemented by a target of :class:`Href`
+class Referrable(typing.Generic[KeyType, UrlType], metaclass=abc.ABCMeta):
+    """Abstract base class for the targets of :class:`Href`
 
-    The class can either be used as a protocol (see `PEP 544
-    <https://www.python.org/dev/peps/pep-0544/>`_) or an abstract base class.
+    The subclass needs to implement at least :meth:`get_key()` to convert
+    between model and key, and :meth:`key_to_url()` and :meth:`url_to_key()` to
+    specify the conversions between the key and URL representations.  The return
+    types of the functions should be annotated to make them available for
+    parsing and serialization at runtime.  Here is an example:
 
-    * When used as a protocol in type annotations, :class:`Referrable` is
-      parametrized by key and URL types, respectively. For example
-      ``Referrable[int, str]`` annotates a referrable type having ``int`` as key
-      and ``str`` as URL. ``Referrable[UUID, AnyHttpUrl]`` annotates a
-      referrable type having ``UUID`` key and ``AnyHttpUrl`` as URL type.
+    .. code-block:: python
 
-    * When used as an abstract base class, the subclass needs to implement at least
-      :meth:`get_key()` to convert between model and key, and
-      :meth:`key_to_url()` and :meth:`url_to_key()` to specify the conversions
-      between the key and URL representations. The return types of the functions
-      should be annotated to make them available for parsing and serialization
-      at runtime. Here is an example:
+        class Book(Referrable[int, str]):
+            id: int
 
-      .. code-block:: python
+            def get_key(self) -> int:
+                return self.id
 
-         class Book(Referrable):
-             id: int
+            @staticmethod
+            def key_to_url(key: int) -> str:
+                return f"/books/{key}"
 
-             @classmethod
-             def get_key(self) -> int:
-                 return self.id
-
-             @classmethod
-             def key_to_url(key: int) -> str:
-                 return f"/books/{key}"
-
-             @classmethod
-             def url_to_key(url: str) -> int:
-                 return url.split("/")[-1]
+            @staticmethod
+            def url_to_key(url: str) -> int:
+                return url.split("/")[-1]
     """
 
     @abc.abstractmethod
@@ -156,9 +144,8 @@ class Href(typing.Generic[ReferrableType]):
     """Hypertext reference to another model
 
     The class is generic and can be annotated by a type implementing the
-    :class:`Referrable` protocol.  If ``Book`` is assumed to be a type
-    implementing :class:`Referrable`, then ``Href[Book]`` represents a hyperlink
-    to a book.
+    :class:`Referrable` ABC.  If ``Book`` is assumed to be a type implementing
+    :class:`Referrable`, then ``Href[Book]`` represents a hyperlink to a book.
 
     The annotations are compatible with pydantic and allow it to know what kind
     of reference it is working with (see :ref:`quickstart`).

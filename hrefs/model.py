@@ -63,21 +63,13 @@ class PrimaryKey:
         self.name = name
 
 
-# mypy doesn't like dynamic base classes:
-# https://github.com/python/mypy/wiki/Unsupported-Python-Features
-# ...so working around by some dirty casts
-_base1: typing.Any = type(pydantic.BaseModel)
-_base2: typing.Any = type(Referrable)
-
-
 class _ReferrableModelKeyInfo(typing.NamedTuple):
     key_type: typing.Type
     should_unwrap_key: bool
     field_name: str
 
 
-# pylint: disable=duplicate-bases,inconsistent-mro
-class _ReferrableModelMeta(_base1, _base2):
+class _ReferrableModelMeta(pydantic.main.ModelMetaclass):
     def __new__(cls, name, bases, namespace, **kwargs):
         annotations = pydantic.typing.resolve_annotations(
             namespace.get("__annotations__", {}), namespace.get("__module__", None)

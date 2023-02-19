@@ -12,7 +12,7 @@ The two main building blocks of the :mod:`hrefs` library are
 
 * :class:`Href`, the class representing hyperlinks
 
-* :class:`Referrable`, the protocol/ABC of types that can be targets of
+* :class:`Referrable`, the abstract base class of types that can be targets of
   hyperlinks
 
 .. autoclass:: Href

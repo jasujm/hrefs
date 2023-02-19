@@ -189,7 +189,16 @@ containing hrefs. You just need to ensure that:
 Writing a custom integration
 ----------------------------
 
+The ``hrefs`` library works out of the box with Starlette and FastAPI, but can
+be integrated to work with other web frameworks too.
+
 The :class:`hrefs.Href` class can refer to any type implementing the
-:class:`hrefs.Referrable` protocol. You can also use the
-:class:`hrefs.BaseReferrableModel` ABC to get part of the implementation for
-free.
+:class:`hrefs.Referrable` abstract base class. If you plan to take advantage of
+``pydantic`` type annotations and want metaclass magic to take care of most of
+the heavy lifting, :class:`hrefs.BaseReferrableModel` is the best starting point.
+
+Unfortunately, the model class cannot stay agnostic to the way your web
+framework resolves URLs, so you'll likely need to add at least one more layer of
+base classes to abstract away those details. The implementation of
+:class:`hrefs.starlette.ReferrableModel` should provide a reasonable starting
+point.
