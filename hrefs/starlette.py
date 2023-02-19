@@ -185,6 +185,11 @@ class ReferrableModel(BaseReferrableModel):
             path_params = {
                 k: v for (k, v) in path_and_query_params.items() if k in path_param_keys
             }
+            if len(path_params) != len(path_param_keys):
+                missing_params = path_param_keys - set(path_params.keys())
+                raise ValueError(
+                    f"Could not resolve {key} into url. The following path parameters are expected in the route but missing from the model key: {', '.join(missing_params)}"
+                )
             query_params = {
                 k: v
                 for (k, v) in path_and_query_params.items()
@@ -196,7 +201,7 @@ class ReferrableModel(BaseReferrableModel):
                 )
             ).replace_query_params(**query_params)
             return _URL_MODEL.parse_obj(str(url)).__root__  # type: ignore
-        raise ValueError("Could not resolve {key} into url")
+        raise ValueError(f"Could not resolve {key} into url")
 
     @classmethod
     def url_to_key(cls, url: pydantic.AnyHttpUrl) -> typing.Any:
