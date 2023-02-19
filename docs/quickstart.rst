@@ -52,11 +52,14 @@ To make a model target for hrefs, it needs to:
   the details of the referrable model. The URLs will be built by reversed
   routing, using the *primary key* of the model as parameters.
 
-* Have a primary key used as a router parameter in ``details_view``. In the
-  above example ``Book.id`` is the primary key. This may or may not correspond
-  to the primary key in a database, but ``hrefs`` really isn't concerned the
-  database layer. By default, the primary key is the ``id`` field but can be
-  configured. See :ref:`configure_key` for details.
+* In the above example ``Book.id`` is the primary key. This may or may not
+  correspond to the primary key in a database, but ``hrefs`` really isn't
+  concerned with the database layer. By default, the primary key is the ``id``
+  field but can be configured. See :ref:`configure_key` for details.
+
+* The primary key name typically appears as a path parameter in the route, but
+  this isn't required. Keys can be converted to and from both path and query
+  parameters. Keys omitted from the path are assumed to be query parameters.
 
 .. note::
 

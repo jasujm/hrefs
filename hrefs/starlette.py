@@ -5,10 +5,11 @@ import contextvars
 import typing
 
 import pydantic
-from starlette.datastructures import URL
+from starlette.datastructures import URL, QueryParams
 from starlette.requests import HTTPConnection, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.applications import Starlette
+from starlette.routing import BaseRoute
 
 from .model import BaseReferrableModel
 
@@ -22,8 +23,15 @@ BaseUrl = typing.Optional[typing.Union[str, URL]]
 
 
 _href_context_var: contextvars.ContextVar[
-    typing.Tuple[RequestOrApp, BaseUrl]
+    typing.Tuple[RequestOrApp, typing.Optional[BaseUrl]]
 ] = contextvars.ContextVar("_href_context_var")
+
+
+def _get_routes_from_context() -> typing.Tuple[typing.Sequence[BaseRoute], BaseUrl]:
+    request_or_app, base_url = _href_context_var.get()
+    if isinstance(request_or_app, HTTPConnection):
+        return request_or_app.app.routes, request_or_app.base_url
+    return request_or_app.routes, base_url
 
 
 @contextlib.contextmanager
@@ -103,7 +111,6 @@ class HrefMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
 
-# pylint: disable=abstract-method
 class ReferrableModel(BaseReferrableModel):
     """Referrable model with Starlette integration
 
@@ -146,36 +153,47 @@ class ReferrableModel(BaseReferrableModel):
 
     @classmethod
     def key_to_url(cls, key) -> pydantic.AnyHttpUrl:
-        request, base_url = _href_context_var.get()
+        routes, base_url = _get_routes_from_context()
         details_view = cls._get_details_view()
-        kwargs = cls.key_to_path_params(key)
-        if isinstance(request, HTTPConnection):
-            url = request.url_for(details_view, **kwargs)
-        elif base_url is not None:
-            url = request.url_path_for(details_view, **kwargs).make_absolute_url(
-                base_url
-            )
-        else:
+        if not base_url:
             raise RuntimeError(
                 "href_context must have base_url set if using application as context"
             )
-        return _URL_MODEL.parse_obj(url).__root__  # type: ignore
+        url: URL
+        for route in routes:
+            if getattr(route, "name", None) == details_view:
+                all_params = cls.key_to_path_params(key)
+                path_param_keys = set(getattr(route, "param_convertors", {}).keys())
+                path_params = {
+                    k: v for (k, v) in all_params.items() if k in path_param_keys
+                }
+                query_params = {
+                    k: v for (k, v) in all_params.items() if k not in path_param_keys
+                }
+                url = URL(
+                    route.url_path_for(details_view, **path_params).make_absolute_url(
+                        base_url
+                    )
+                ).replace_query_params(**query_params)
+                break
+        return _URL_MODEL.parse_obj(str(url)).__root__  # type: ignore
 
     @classmethod
     def url_to_key(cls, url: pydantic.AnyHttpUrl) -> typing.Any:
-        request_or_app, _ = _href_context_var.get()
-        if isinstance(request_or_app, HTTPConnection):
-            routes = request_or_app.app.routes
-        else:
-            routes = request_or_app.routes
+        routes, _ = _get_routes_from_context()
         details_view = cls._get_details_view()
         for route in routes:
-            if route.name == details_view:
+            if getattr(route, "name", None) == details_view:
                 _, scope = route.matches(
                     {"type": "http", "method": "GET", "path": url.path}
                 )
                 if scope:
-                    return cls.path_params_to_key(scope["path_params"])
+                    query_params = QueryParams(url.query or "")
+                    all_params = {
+                        **scope["path_params"],
+                        **query_params,
+                    }
+                    return cls.path_params_to_key(all_params)
         raise ValueError(f"Could not resolve {url} into key")
 
     @classmethod

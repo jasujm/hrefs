@@ -78,7 +78,7 @@ async def post_article(article: Article):
     save_article(article)
 
 
-@app.get("/comments/{id}", response_model=Comment)
+@app.get("/comments", response_model=Comment)
 async def get_comment(id: uuid.UUID):
     assert id in comments_var.get()
     return Comment(id=id)
@@ -139,7 +139,7 @@ def test_parse_url_to_href(article_id, revision, comment_ids):
         content=json.dumps(
             dict(
                 self=str(article_id),
-                comments=[f"http://testserver/comments/{id}" for id in comment_ids],
+                comments=[f"http://testserver/comments?id={id}" for id in comment_ids],
                 current_revision=f"http://testserver/articles/{article_id}/revisions/{revision}",
             )
         ),
@@ -168,20 +168,20 @@ def test_websocket_as_href_context():
     with client.websocket_connect("/comment") as websocket:
         websocket.send_json(str(comment_id))
         response = websocket.receive_json()
-    assert response == f"http://testserver/comments/{comment_id}"
+    assert response == f"http://testserver/comments?id={comment_id}"
 
 
 def test_app_as_href_context_parse_key(appcontext):
     comment_id = uuid.uuid4()
     comment = pydantic.parse_obj_as(Href[Comment], comment_id)
     assert comment == Href(
-        key=comment_id, url=f"http://testserver/comments/{comment_id}"
+        key=comment_id, url=f"http://testserver/comments?id={comment_id}"
     )
 
 
 def test_app_as_href_context_parse_url(appcontext):
     comment_id = uuid.uuid4()
-    comment_url = f"http://testserver/comments/{comment_id}"
+    comment_url = f"http://testserver/comments?id={comment_id}"
     comment = pydantic.parse_obj_as(Href[Comment], comment_url)
     assert comment == Href(key=comment_id, url=comment_url)
 
