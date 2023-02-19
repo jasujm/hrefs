@@ -7,7 +7,7 @@ Changed
 
 Deprecated
  * ``hrefs.Referrable`` can no longer be used as `PEP 544 protocol
-   <https://www.python.org/dev/peps/pep-0544/>`
+   <https://www.python.org/dev/peps/pep-0544/>`_
 
 Version 0.6.1
 -------------
