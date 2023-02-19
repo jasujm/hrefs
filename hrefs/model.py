@@ -49,7 +49,7 @@ class PrimaryKey:
         type_: The underlying key type if the annotated primary key is
                itself a hyperlink. See :ref:`href_as_key`.
         name: The name of the key. It may be distinct from the actual field
-              name, and will appear in path parameters etc.
+              name, and will be used to match the key to path/query parameters
     """
 
     __slots__ = ["type_", "name"]
@@ -239,13 +239,13 @@ class BaseReferrableModel(
         return len(cls._key_names) == 1
 
     @classmethod
-    def key_to_path_params(cls, key: typing.Any) -> typing.Dict[str, typing.Any]:
-        """Convert model key to path parameters
+    def key_to_params(cls, key: typing.Any) -> typing.Dict[str, typing.Any]:
+        """Convert model key to path/query parameters of an URL
 
         This is a helper that can be used to convert a model key into a
-        dictionary containing the key parts. Hyperlinks are unwrapped (see
-        :ref:`href_as_key`).  It can be used to generate URLs in several HTTP
-        frameworks.
+        dictionary containing the key parts.  Hyperlinks are unwrapped (see
+        :ref:`href_as_key`).  The dictionary can be used to generate the path
+        and query parameters of URLs in a typical HTTP framework.
 
         Arguments:
             key: model key
@@ -255,37 +255,35 @@ class BaseReferrableModel(
         """
         if cls.has_simple_key():
             key = (key,)
-        path_params = {}
+        params = {}
         for subkeys, subkey_names in zip(key, cls._key_map.values()):
             subkeys = _unwrap_key(subkeys)
             if isinstance(subkey_names, str):
-                path_params[subkey_names] = subkeys
+                params[subkey_names] = subkeys
             else:
                 for subkey_name, subkey in zip(subkey_names, subkeys):
-                    path_params[subkey_name] = subkey
-        return path_params
+                    params[subkey_name] = subkey
+        return params
 
     @classmethod
-    def path_params_to_key(
-        cls, path_params: typing.Mapping[str, typing.Any]
-    ) -> typing.Any:
-        """Convert path parameters to model key
+    def params_to_key(cls, params: typing.Mapping[str, typing.Any]) -> typing.Any:
+        """Convert path/query parameters of an URL to model key
 
-        This helper can be used to convert path parameter mapping to model
-        key. It is the inverse of :meth:`key_to_path_params()`.
+        This helper can be used to convert a parameter mapping to model
+        key. It is the inverse of :meth:`key_to_params()`.
 
         Arguments:
-            path_params: A mapping from key names to key parts
+            params: A mapping from key names to key parts
 
         Returns:
-            Model key parsed from ``path_params``
+            Model key parsed from ``params``
         """
         subkeys = []
         for subkey_names in cls._key_map.values():
             if isinstance(subkey_names, str):
-                subkey = path_params[subkey_names]
+                subkey = params[subkey_names]
             else:
-                subkey = [path_params[subkey_name] for subkey_name in subkey_names]
+                subkey = [params[subkey_name] for subkey_name in subkey_names]
             subkeys.append(subkey)
         if cls.has_simple_key():
             subkeys = subkeys[0]

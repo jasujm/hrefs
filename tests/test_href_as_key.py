@@ -11,13 +11,13 @@ class Book(BaseReferrableModel):
 
     @classmethod
     def key_to_url(cls, key) -> str:
-        path_params = cls.key_to_path_params(key)
+        path_params = cls.key_to_params(key)
         return f"/books/{path_params['id']}"
 
     @classmethod
     def url_to_key(cls, url: str) -> int:
         path_params = {"id": int(url.split("/")[-1])}
-        key = cls.path_params_to_key(path_params)
+        key = cls.params_to_key(path_params)
         return key
 
 
@@ -26,14 +26,14 @@ class BookCover(BaseReferrableModel):
 
     @classmethod
     def key_to_url(cls, key) -> str:
-        path_params = cls.key_to_path_params(key)
+        path_params = cls.key_to_params(key)
         return f"/books/{path_params['book_id']}/cover"
 
     @classmethod
     def url_to_key(cls, url: str):
         parts = url.split("/")
         path_params = {"book_id": int(parts[-2])}
-        return cls.path_params_to_key(path_params)
+        return cls.params_to_key(path_params)
 
 
 class Page(BaseReferrableModel):
@@ -42,14 +42,14 @@ class Page(BaseReferrableModel):
 
     @classmethod
     def key_to_url(cls, key) -> str:
-        path_params = cls.key_to_path_params(key)
+        path_params = cls.key_to_params(key)
         return f"/books/{path_params['book_id']}/pages/{path_params['page_number']}"
 
     @classmethod
     def url_to_key(cls, url: str):
         parts = url.split("/")
         path_params = {"book_id": int(parts[-3]), "page_number": int(parts[-1])}
-        return cls.path_params_to_key(path_params)
+        return cls.params_to_key(path_params)
 
 
 class Bookmark(BaseReferrableModel):
@@ -57,7 +57,7 @@ class Bookmark(BaseReferrableModel):
 
     @classmethod
     def key_to_url(cls, key) -> str:
-        path_params = cls.key_to_path_params(key)
+        path_params = cls.key_to_params(key)
         return f"/books/{path_params['page_book_id']}/pages/{path_params['page_page_number']}/bookmark"
 
     @classmethod
@@ -67,7 +67,7 @@ class Bookmark(BaseReferrableModel):
             "page_book_id": int(parts[-4]),
             "page_page_number": int(parts[-2]),
         }
-        return cls.path_params_to_key(path_params)
+        return cls.params_to_key(path_params)
 
 
 Book.update_forward_refs()

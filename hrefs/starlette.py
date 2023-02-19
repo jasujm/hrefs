@@ -180,13 +180,15 @@ class ReferrableModel(BaseReferrableModel):
         details_view = cls._get_details_view()
         route = _get_route(details_view)
         if route:
-            all_params = cls.key_to_path_params(key)
+            path_and_query_params = cls.key_to_params(key)
             path_param_keys = set(route.param_convertors.keys())
             path_params = {
-                k: v for (k, v) in all_params.items() if k in path_param_keys
+                k: v for (k, v) in path_and_query_params.items() if k in path_param_keys
             }
             query_params = {
-                k: v for (k, v) in all_params.items() if k not in path_param_keys
+                k: v
+                for (k, v) in path_and_query_params.items()
+                if k not in path_param_keys
             }
             url = URL(
                 route.url_path_for(details_view, **path_params).make_absolute_url(
@@ -206,11 +208,11 @@ class ReferrableModel(BaseReferrableModel):
             )
             if scope:
                 query_params = QueryParams(url.query or "")
-                all_params = {
+                path_and_query_params = {
                     **scope["path_params"],
                     **query_params,
                 }
-                return cls.path_params_to_key(all_params)
+                return cls.params_to_key(path_and_query_params)
         raise ValueError(f"Could not resolve {url} into key")
 
     @classmethod
