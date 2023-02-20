@@ -1,6 +1,9 @@
 Unreleased
 ----------
 
+Added
+ * Support for query parameters in URLs
+
 Changed
  * Simplified type hints and removed bunch of code requiring suppression of
    ``pylint`` and ``mypy`` warnings
