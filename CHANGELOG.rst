@@ -1,5 +1,8 @@
-Unreleased
-----------
+Version 0.7
+-----------
+
+Date
+  2023-02-20
 
 Added
  * Support for query parameters in URLs
