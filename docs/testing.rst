@@ -53,12 +53,13 @@ to do its magic for hyperlinks. Here is an example using `pytest
 
    from pytest import fixture
    from fastapi import FastAPI
-   from hrefs.starlette import ReferrableModel, href_context
+   from hrefs import BaseReferrableModel
+   from hrefs.starlette import href_context
    from hypothesis import given, strategies as st, settings, HealthCheck
 
    app = FastAPI(...)
 
-   class Book(ReferrableModel):
+   class Book(BaseReferrableModel):
        id: int
 
        # ...the rest of the definitions...
@@ -70,5 +71,5 @@ to do its magic for hyperlinks. Here is an example using `pytest
 
    @given(st.from_type(Href[Book]))
    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-   def test_hrefs_with_hypothesis(href):
+   def test_hrefs_with_hypothesis(appcontext, href):
        assert href.url == f"http://testserver/books/{href.key}"

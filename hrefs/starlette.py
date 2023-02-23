@@ -1,7 +1,5 @@
 """Starlette integration"""
 
-import contextlib
-import contextvars
 import typing
 
 import pydantic
@@ -11,59 +9,103 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.applications import Starlette
 from starlette.routing import Route
 
-from .model import BaseReferrableModel
-
-
-_URL_MODEL: typing.Type[pydantic.BaseModel] = pydantic.create_model(
-    "_URL_MODEL", __root__=(pydantic.AnyHttpUrl, ...)
-)
+from .model import BaseReferrableModel, HrefResolver, resolve_hrefs, _URL_MODEL
 
 RequestOrApp = typing.Union[HTTPConnection, Starlette]
 BaseUrl = typing.Union[str, URL]
 
 
-_href_context_var: contextvars.ContextVar[
-    typing.Tuple[RequestOrApp, typing.Optional[BaseUrl]]
-] = contextvars.ContextVar("_href_context_var")
+class _StarletteHrefResolver(HrefResolver):
+    _route_cache: typing.Dict[typing.Tuple[Starlette, str], Route] = {}
 
-_route_cache: typing.Dict[typing.Tuple[Starlette, str], Route] = {}
+    def __init__(
+        self, request_or_app: RequestOrApp, base_url: typing.Optional[BaseUrl]
+    ):
+        self.request_or_app = request_or_app
+        self.base_url = base_url
+
+    def _get_route(self, route_name: str) -> typing.Optional[Route]:
+        if isinstance(self.request_or_app, HTTPConnection):
+            app = self.request_or_app.app
+        else:
+            app = self.request_or_app
+        cached_route = self._route_cache.get((app, route_name))
+        if cached_route:
+            return cached_route
+        for route in app.routes:
+            if isinstance(route, Route) and route.name == route_name:
+                self._route_cache[(app, route_name)] = route
+                return route
+        return None
+
+    def _get_base_url(self) -> BaseUrl:
+        if isinstance(self.request_or_app, HTTPConnection):
+            return self.request_or_app.base_url
+        if not self.base_url:
+            raise RuntimeError(
+                "href_context must have base_url set if using application as context"
+            )
+        return self.base_url
+
+    @staticmethod
+    def _get_details_view(model_cls: typing.Type[BaseReferrableModel]):
+        return getattr(model_cls.__config__, "details_view")
+
+    def key_to_url(
+        self, key: typing.Any, *, model_cls: typing.Type[BaseReferrableModel]
+    ) -> pydantic.AnyHttpUrl:
+        details_view = self._get_details_view(model_cls)
+        route = self._get_route(details_view)
+        if route:
+            path_and_query_params = model_cls.key_to_params(key)
+            path_param_keys = set(route.param_convertors.keys())
+            path_params = {
+                k: v for (k, v) in path_and_query_params.items() if k in path_param_keys
+            }
+            if len(path_params) != len(path_param_keys):
+                missing_params = path_param_keys - set(path_params.keys())
+                raise ValueError(
+                    f"Could not resolve {key} into url. The following path parameters are expected in the route but missing from the model key: {', '.join(missing_params)}"
+                )
+            query_params = {
+                k: v
+                for (k, v) in path_and_query_params.items()
+                if k not in path_param_keys
+            }
+            url = URL(
+                route.url_path_for(details_view, **path_params).make_absolute_url(
+                    self._get_base_url()
+                )
+            ).replace_query_params(**query_params)
+            return _URL_MODEL.parse_obj(str(url)).__root__  # type: ignore
+        raise ValueError(f"Could not resolve {key} into url")
+
+    def url_to_key(
+        self, url: pydantic.AnyHttpUrl, *, model_cls: typing.Type[BaseReferrableModel]
+    ) -> typing.Any:
+        details_view = self._get_details_view(model_cls)
+        route = self._get_route(details_view)
+        if route:
+            _, scope = route.matches(
+                {"type": "http", "method": "GET", "path": url.path}
+            )
+            if scope:
+                query_params = QueryParams(url.query or "")
+                path_and_query_params = {
+                    **scope["path_params"],
+                    **query_params,
+                }
+                return model_cls.params_to_key(path_and_query_params)
+        raise ValueError(f"Could not resolve {url} into key")
 
 
-def _get_route(route_name: str) -> typing.Optional[Route]:
-    request_or_app, _ = _href_context_var.get()
-    if isinstance(request_or_app, HTTPConnection):
-        app = request_or_app.app
-    else:
-        app = request_or_app
-    cached_route = _route_cache.get((app, route_name))
-    if cached_route:
-        return cached_route
-    for route in app.routes:
-        if isinstance(route, Route) and route.name == route_name:
-            _route_cache[(app, route_name)] = route
-            return route
-    return None
-
-
-def _get_base_url() -> BaseUrl:
-    request_or_app, base_url = _href_context_var.get()
-    if isinstance(request_or_app, HTTPConnection):
-        return request_or_app.base_url
-    if not base_url:
-        raise RuntimeError(
-            "href_context must have base_url set if using application as context"
-        )
-    return base_url
-
-
-@contextlib.contextmanager
 def href_context(
     request_or_app: RequestOrApp, *, base_url: typing.Optional[BaseUrl] = None
-):
+) -> typing.ContextManager[_StarletteHrefResolver]:
     """Context manager that sets hyperlink context
 
     Makes ``request_or_app`` responsible for converting between keys and URLs in
-    hyperlinks to :class:`ReferrableModel`. The context can be either of the
+    hyperlinks to :class:`BaseReferrableModel`. The context can be either of the
     following:
 
     * A Starlette ``HTTPConnection`` -- that is HTTP request or websocket
@@ -81,14 +123,13 @@ def href_context(
     .. code-block:: python
 
        from fastapi import FastAPI, WebSocket
-       from hrefs.starlette import ReferrableModel, href_context
+       from hrefs import BaseReferrableModel
+       from hrefs.starlette import href_context
 
        app = FastAPI(...)
 
-       class Book(ReferrableModel):
+       class Book(BaseReferrableModel):
            id: int
-
-           # ...et cetera...
 
        @app.websocket("/")
        async def my_awesome_websocket_endpoint(websocket: WebSocket):
@@ -116,11 +157,7 @@ def href_context(
         request_or_app: The request or app to be used as hyperlink context
         base_url: The base URL (needed when using application as context)
     """
-    token = _href_context_var.set((request_or_app, base_url))
-    try:
-        yield
-    finally:
-        _href_context_var.reset(token)
+    return resolve_hrefs(_StarletteHrefResolver(request_or_app, base_url))
 
 
 class HrefMiddleware(BaseHTTPMiddleware):
@@ -136,90 +173,4 @@ class HrefMiddleware(BaseHTTPMiddleware):
 
 
 class ReferrableModel(BaseReferrableModel):
-    """Referrable model with Starlette integration
-
-    This class is the preferable base class of models in a Starlette/FastAPI
-    application. More specifically, it extends the
-    :class:`hrefs.BaseReferrableModel` class with the following features:
-
-    * Its key type is inferred from type annotations as in the base class
-
-    * Its URL type is always :class:`pydantic.AnyHttpUrl`
-
-    * It uses a context (app or request) to automatically generate and resolve
-      URLs based on routes defined in the application.
-
-    The preferable way to provide :class:`ReferrableModel` its context is by
-    adding :class:`HrefMiddleware` to the middleware stack of the application.
-    :func:`href_context()` can alternatively be used when using the middleware
-    is not possible (for example in websocket handlers or when using hyperlinks
-    outside of request handlers).
-
-    Here is a minimal example using route called ``"my_view"`` to convert
-    to/from URLs:
-
-    .. code-block:: python
-
-        class MyModel(ReferrableModel):
-            id: int
-
-            class Config:
-                details_view = "my_view"
-
-    For a more complete example of using :mod:`hrefs` library with Starlette,
-    please refer to :ref:`quickstart`.
-    """
-
-    @classmethod
-    def parse_as_url(cls, value: typing.Any) -> typing.Optional[pydantic.AnyHttpUrl]:
-        """Parse ``value`` as ``pydantic.AnyHttpUrl``"""
-        return cls.try_parse_as(_URL_MODEL, value)
-
-    @classmethod
-    def key_to_url(cls, key) -> pydantic.AnyHttpUrl:
-        details_view = cls._get_details_view()
-        route = _get_route(details_view)
-        if route:
-            path_and_query_params = cls.key_to_params(key)
-            path_param_keys = set(route.param_convertors.keys())
-            path_params = {
-                k: v for (k, v) in path_and_query_params.items() if k in path_param_keys
-            }
-            if len(path_params) != len(path_param_keys):
-                missing_params = path_param_keys - set(path_params.keys())
-                raise ValueError(
-                    f"Could not resolve {key} into url. The following path parameters are expected in the route but missing from the model key: {', '.join(missing_params)}"
-                )
-            query_params = {
-                k: v
-                for (k, v) in path_and_query_params.items()
-                if k not in path_param_keys
-            }
-            url = URL(
-                route.url_path_for(details_view, **path_params).make_absolute_url(
-                    _get_base_url()
-                )
-            ).replace_query_params(**query_params)
-            return _URL_MODEL.parse_obj(str(url)).__root__  # type: ignore
-        raise ValueError(f"Could not resolve {key} into url")
-
-    @classmethod
-    def url_to_key(cls, url: pydantic.AnyHttpUrl) -> typing.Any:
-        details_view = cls._get_details_view()
-        route = _get_route(details_view)
-        if route:
-            _, scope = route.matches(
-                {"type": "http", "method": "GET", "path": url.path}
-            )
-            if scope:
-                query_params = QueryParams(url.query or "")
-                path_and_query_params = {
-                    **scope["path_params"],
-                    **query_params,
-                }
-                return cls.params_to_key(path_and_query_params)
-        raise ValueError(f"Could not resolve {url} into key")
-
-    @classmethod
-    def _get_details_view(cls):
-        return getattr(cls.__config__, "details_view")
+    """Referrable model with Starlette integration"""

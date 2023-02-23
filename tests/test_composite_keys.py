@@ -12,7 +12,7 @@ class Book(BaseReferrableModel):
 
     @staticmethod
     def key_to_url(key: int) -> str:
-        return f"/books/{key}"
+        return f"http://example.com/books/{key}"
 
     @staticmethod
     def url_to_key(url: str):
@@ -25,7 +25,7 @@ class Page(BaseReferrableModel):
 
     @staticmethod
     def key_to_url(key: Tuple[int, int]) -> str:
-        return f"/books/{key[0]}/pages/{key[1]}"
+        return f"http://example.com/books/{key[0]}/pages/{key[1]}"
 
     @staticmethod
     def url_to_key(url: str):
@@ -48,7 +48,7 @@ def test_parse_composite_key_to_href(key):
     assert href.url == Page.key_to_url(key)
 
 
-@given(st.from_regex(r"\A/books/\d+/pages/\d+\Z"))
+@given(st.from_regex(r"\Ahttp://example\.com/books/\d+/pages/\d+\Z"))
 def test_parse_composite_url_to_href(url):
     href = pydantic.parse_obj_as(Href[Page], url)
     assert href.key == Page.url_to_key(url)

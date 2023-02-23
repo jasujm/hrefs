@@ -22,7 +22,7 @@ class Pet(BaseReferrableModel):
 
     @staticmethod
     def key_to_url(key: int) -> str:
-        return f"/pets/{key}"
+        return f"http://example.com/pets/{key}"
 
     @staticmethod
     def url_to_key(url: str):
@@ -52,7 +52,7 @@ def test_parse_key_to_href(key):
     assert href.url == Pet.key_to_url(key)
 
 
-@given(st.from_regex(r"\A/pets/\d+\Z"))
+@given(st.from_regex(r"\Ahttp://example\.com/pets/\d+\Z"))
 def test_parse_url_to_key(url):
     href = pydantic.parse_obj_as(Href[Pet], url)
     assert href.key == Pet.url_to_key(url)

@@ -9,9 +9,9 @@ Using ``hrefs`` with FastAPI
 Setting up the application
 ..........................
 
-The :mod:`hrefs` library resolves URLs automatically. For that to work, it only
-needs the :class:`hrefs.starlette.HrefMiddleware` to be included in the
-middleware stack:
+Before starting to use the :mod:`hrefs` library to resolve between models and
+URLs, :class:`hrefs.starlette.HrefMiddleware` needs to be included in the
+middleware stack.
 
 .. code-block:: python
 
@@ -28,9 +28,9 @@ Defining a referrable model
 
 .. code-block:: python
 
-   from hrefs.starlette import ReferrableModel
+   from hrefs import BaseReferrableModel
 
-   class Book(ReferrableModel):
+   class Book(BaseReferrableModel):
        id: int
        title: str
 
@@ -44,22 +44,22 @@ Defining a referrable model
            raise HTTPException(status_code=404, detail="Book not found")
        return book
 
-To make a model target for hrefs, it needs to:
+To make a model target for hyperlinks, it needs to:
 
-* Inherit from :class:`hrefs.starlette.ReferrableModel`.
+* Inherit from :class:`hrefs.BaseReferrableModel`.
 
 * Have a configuration called ``details_view`` naming the route that will return
   the details of the referrable model. The URLs will be built by reversed
   routing, using the *primary key* of the model as parameters.
 
-* In the above example ``Book.id`` is the primary key. This may or may not
-  correspond to the primary key in a database, but ``hrefs`` really isn't
-  concerned with the database layer. By default, the primary key is the ``id``
-  field but can be configured. See :ref:`configure_key` for details.
+In the above example ``Book.id`` is the primary key. This may or may not
+correspond to the primary key in a database, but ``hrefs`` really isn't
+concerned with the database layer. By default, the primary key is the ``id``
+field but can be configured. See :ref:`configure_key` for details.
 
-* The primary key name typically appears as a path parameter in the route, but
-  this isn't required. Keys can be converted to and from both path and query
-  parameters. Keys omitted from the path are assumed to be query parameters.
+The primary key name typically appears as a path parameter in the route, but
+this isn't required. Keys can be converted to and from both path and query
+parameters. Keys omitted from the path are assumed to be query parameters.
 
 .. note::
 
@@ -181,13 +181,13 @@ mind, the integration doesn't depend on FastAPI, only `pydantic
 <https://www.starlette.io/>`_. You can perfectly well write Starlette apps
 containing hrefs. You just need to ensure that:
 
-* For each subclass of :class:`hrefs.starlette.ReferrableModel` there is a named
-  route matching the ``details_view`` configuration.
+* For each subclass of :class:`hrefs.BaseReferrableModel` there is a named route
+  matching the ``details_view`` configuration.
 
 * :class:`hrefs.starlette.HrefMiddleware` is added to the middleware stack.
 
 * In the responses, the pydantic models containing references are explicitly
-  serialized using ``model.json()`` method.
+  serialized using the ``model.json()`` method.
 
 Writing a custom integration
 ----------------------------
@@ -200,8 +200,5 @@ The :class:`hrefs.Href` class can refer to any type implementing the
 ``pydantic`` type annotations and want metaclass magic to take care of most of
 the heavy lifting, :class:`hrefs.BaseReferrableModel` is the best starting point.
 
-Unfortunately, the model class cannot stay agnostic to the way your web
-framework resolves URLs, so you'll likely need to add at least one more layer of
-base classes to abstract away those details. The implementation of
-:class:`hrefs.starlette.ReferrableModel` should provide a reasonable starting
-point.
+See :ref:`custom_web_framework_api` for the API that new web framework
+integrations need to implement.

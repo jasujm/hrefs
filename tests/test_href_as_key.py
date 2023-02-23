@@ -12,10 +12,10 @@ class Book(BaseReferrableModel):
     @classmethod
     def key_to_url(cls, key) -> str:
         path_params = cls.key_to_params(key)
-        return f"/books/{path_params['id']}"
+        return f"http://example.com/books/{path_params['id']}"
 
     @classmethod
-    def url_to_key(cls, url: str) -> int:
+    def url_to_key(cls, url: pydantic.AnyHttpUrl) -> int:
         path_params = {"id": int(url.split("/")[-1])}
         key = cls.params_to_key(path_params)
         return key
@@ -27,7 +27,7 @@ class BookCover(BaseReferrableModel):
     @classmethod
     def key_to_url(cls, key) -> str:
         path_params = cls.key_to_params(key)
-        return f"/books/{path_params['book_id']}/cover"
+        return f"http://example.com/books/{path_params['book_id']}/cover"
 
     @classmethod
     def url_to_key(cls, url: str):
@@ -43,7 +43,7 @@ class Page(BaseReferrableModel):
     @classmethod
     def key_to_url(cls, key) -> str:
         path_params = cls.key_to_params(key)
-        return f"/books/{path_params['book_id']}/pages/{path_params['page_number']}"
+        return f"http://example.com/books/{path_params['book_id']}/pages/{path_params['page_number']}"
 
     @classmethod
     def url_to_key(cls, url: str):
@@ -58,7 +58,7 @@ class Bookmark(BaseReferrableModel):
     @classmethod
     def key_to_url(cls, key) -> str:
         path_params = cls.key_to_params(key)
-        return f"/books/{path_params['page_book_id']}/pages/{path_params['page_page_number']}/bookmark"
+        return f"http://example.com/books/{path_params['page_book_id']}/pages/{path_params['page_page_number']}/bookmark"
 
     @classmethod
     def url_to_key(cls, url: str):
@@ -79,7 +79,7 @@ def test_self_href_from_key(key):
     assert book.self == Href(key=key, url=Book.key_to_url(key))
 
 
-@given(st.from_regex(r"\A/books/\d+\Z"))
+@given(st.from_regex(r"\Ahttp://example\.com/books/\d+\Z"))
 def test_self_href_from_url(url):
     book = Book(self=url)
     assert book.self == Href(key=Book.url_to_key(url), url=url)
@@ -101,7 +101,7 @@ def test_parse_href_key_from_referred_key(book_id):
     assert href.url == BookCover.key_to_url(key)
 
 
-@given(st.from_regex(r"\A/books/\d+/cover\Z"))
+@given(st.from_regex(r"\Ahttp://example\.com/books/\d+/cover\Z"))
 def test_parse_href_key_from_referred_url(url):
     href = pydantic.parse_obj_as(Href[BookCover], url)
     assert href.key == BookCover.url_to_key(url)
@@ -124,7 +124,7 @@ def test_parse_composite_href_key_from_referred_key(book_id, page_number):
     assert href.url == Page.key_to_url(key)
 
 
-@given(st.from_regex(r"\A/books/\d+/pages/\d+\Z"))
+@given(st.from_regex(r"\Ahttp://example\.com/books/\d+/pages/\d+\Z"))
 def test_parse_composite_href_key_from_referred_url(url):
     href = pydantic.parse_obj_as(Href[Page], url)
     assert href.key == Page.url_to_key(url)
@@ -152,7 +152,7 @@ def test_parse_indirect_href_key_from_referred_key(book_id, page_number):
     assert href.url == Bookmark.key_to_url(key)
 
 
-@given(st.from_regex(r"\A/books/\d+/pages/\d+/bookmark\Z"))
+@given(st.from_regex(r"\Ahttp://example\.com/books/\d+/pages/\d+/bookmark\Z"))
 def test_parse_indirect_href_key_from_referred_url(url):
     href = pydantic.parse_obj_as(Href[Bookmark], url)
     assert href.key == Bookmark.url_to_key(url)

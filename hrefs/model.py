@@ -5,6 +5,9 @@ types. Integration to particular frameworks are defined in the framework
 specific module.
 """
 
+import abc
+import contextlib
+import contextvars
 import typing
 
 import pydantic
@@ -14,6 +17,10 @@ import typing_extensions
 from .href import Href, Referrable
 
 _DEFAULT_KEY = "id"
+
+_URL_MODEL: typing.Type[pydantic.BaseModel] = pydantic.create_model(
+    "_URL_MODEL", __root__=(pydantic.AnyHttpUrl, ...)
+)
 
 
 def _unwrap_key(obj: typing.Any):
@@ -27,6 +34,114 @@ def _getattr_and_maybe_unwrap_key(obj: typing.Any, name: str, unwrap_key: bool):
     if unwrap_key:
         ret = _unwrap_key(ret)
     return ret
+
+
+class HrefResolver(typing_extensions.Protocol):
+    """Hyperlink resolver for :class:`BaseReferrableModel` subclasses
+
+    A hyperlink resolver acts as an integration point between models and the web
+    framework.  A web framework implements its resolver that encapsulates the
+    general logic of converting between keys and URLs.  A model that subclasses
+    :class:`BaseReferrableModel` then uses the visitor pattern on the
+    implemented methods to resolve keys and URLs.
+
+    A user of the ``hrefs`` library rarely needs to concern themselves with this
+    class.  It is meant as a protocol to be implemented by new web framework
+    integrations.
+
+    .. seealso::
+
+       :func:`with_href_resolver()` that is used to inject the active resolver context
+    """
+
+    @abc.abstractmethod
+    def key_to_url(
+        self, key: typing.Any, *, model_cls: typing.Type["BaseReferrableModel"]
+    ) -> pydantic.AnyHttpUrl:
+        """Convert key to url
+
+        Arguments:
+            key: The key to convert. The type of the key is assumed to be the key
+                 type of ``model_cls``.
+            model_cls: The model class performing the conversion
+
+        Returns:
+            The URL parsed from ``key``
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def url_to_key(
+        self, url: pydantic.AnyHttpUrl, *, model_cls: typing.Type["BaseReferrableModel"]
+    ) -> typing.Any:
+        """Convert url to key
+
+        Arguments:
+            url: The url to convert. The structure is assumed to follow the URL
+                 structure of ``model_cls``.
+            model_cls: The model class performing the conversion
+
+        Returns:
+            The key parsed from ``url``
+        """
+        raise NotImplementedError()
+
+
+_href_resolver_var: contextvars.ContextVar[HrefResolver] = contextvars.ContextVar(
+    "_href_resolver_var"
+)
+
+
+if typing.TYPE_CHECKING:
+
+    HrefResolverVar = typing.TypeVar("HrefResolverVar", bound=HrefResolver)
+
+    def resolve_hrefs(href_resolver: HrefResolverVar) -> typing.ContextManager[HrefResolverVar]:
+        """resolve_hrefs() for mypy"""
+        del href_resolver
+
+else:
+
+    @contextlib.contextmanager
+    def resolve_hrefs(href_resolver: HrefResolver):
+        """Context manager that sets the active hyperlink resolver
+
+        Makes ``href_resolver`` responsible for converting between keys and URLs
+        for subclasses of :class:`BaseReferrableModel`.  Any conversion must
+        happen inside the context.
+
+        .. code-block:: python
+
+           from hrefs.model import BaseReferrableModel, HrefResolver, resolve_hrefs
+
+           class Book(BaseReferrableModel):
+               id: int
+
+           class MyHrefResolver(HrefResolver):
+               ...
+
+           with resolve_hrefs(MyHrefResolver(...)) as href_resolver:
+               # uses ``href_resolver`` to convert between keys and URLs
+               pydantic.parse_obj_as(Href[Book], "http://example.com/books/1")
+               pydantic.parse_obj_as(Href[Book], 1)
+
+           # raises error
+           pydantic.parse_obj_as(Href[Book], "http://example.com/books/1")
+           pydantic.parse_obj_as(Href[Book], 1)
+
+        This function is intended for web integration developers.  The
+        integrations provide more user friendly ways to expose the resolution
+        functionality, for example `hrefs.starlette.HrefMiddleware` for
+        Starlette/FastAPI integration.
+
+        Arguments:
+            href_resolver: The hyperlink resolver to activate
+        """
+        token = _href_resolver_var.set(href_resolver)
+        try:
+            yield href_resolver
+        finally:
+            _href_resolver_var.reset(token)
 
 
 class PrimaryKey:
@@ -201,15 +316,22 @@ class BaseReferrableModel(
 
     A subclass of both :class:`pydantic.BaseModel` and
     :class:`hrefs.Referrable`.  It should be used as the base class of any
-    pydantic model that will be used as target of :class:`hrefs.Href`.
+    pydantic model that will be used as a target of :class:`hrefs.Href`.
 
     ``BaseReferrableModel`` provides implementations of :func:`get_key()` and
-    :func:`parse_as_key()` based on field annotations. By default, the model
+    :func:`parse_as_key()` based on field annotations.  By default, the model
     key is the ``id`` field (if it exists), but that can be changed by using
-    :class:`PrimaryKey` to annotate other field(s).
+    :class:`PrimaryKey` to annotate other field or fields.
 
-    When using referrable models with FastAPI or Starlette,
-    :class:`hrefs.starlette.ReferrableModel` is the preferable base class.
+    ``BaseReferrableModel`` intentionally has tight coupling to the `pydantic
+    <https://pydantic-docs.helpmanual.io/>`_ library.  As such, it relies
+    heavily on the facilities of that library to handle annotations and parsing.
+    The URL type of pydantic based referrable models is always
+    :class:`pydantic.AnyHttpUrl`.
+
+    While the model class knows how to extract key types from annotations, it
+    doesn't know how to convert between keys and URLs.  For that, it needs to
+    use a :class:`HrefResolver` provided by the web framework integration.
     """
 
     _key_model: typing.ClassVar[typing.Type[pydantic.BaseModel]]
@@ -227,6 +349,30 @@ class BaseReferrableModel(
             composite, returns a tuple containing the parts.
         """
         return self._get_key()
+
+    @classmethod
+    def key_to_url(cls, key) -> pydantic.AnyHttpUrl:
+        resolver = _href_resolver_var.get()
+        return resolver.key_to_url(key, model_cls=cls)
+
+    @classmethod
+    def url_to_key(cls, url: pydantic.AnyHttpUrl) -> typing.Any:
+        resolver = _href_resolver_var.get()
+        return resolver.url_to_key(url, model_cls=cls)
+
+    @classmethod
+    def parse_as_key(cls, value: typing.Any) -> typing.Optional[typing.Any]:
+        """Parse ``value`` as the key type
+
+        The type of the model key based on the field annotations. Either a
+        single type, or (in the case of a composite key), a tuple of the parts.
+        """
+        return cls.try_parse_as(cls._key_model, value)
+
+    @classmethod
+    def parse_as_url(cls, value: typing.Any) -> typing.Optional[pydantic.AnyHttpUrl]:
+        """Parse ``value`` as ``pydantic.AnyHttpUrl``"""
+        return cls.try_parse_as(_URL_MODEL, value)
 
     @classmethod
     def has_simple_key(cls) -> bool:
@@ -307,15 +453,6 @@ class BaseReferrableModel(
         except pydantic.ValidationError:
             return None
         return getattr(parsed_value, "__root__")
-
-    @classmethod
-    def parse_as_key(cls, value: typing.Any) -> typing.Optional[typing.Any]:
-        """Parse ``value`` as the key type
-
-        The type of the model key based on the field annotations. Either a
-        single type, or (in the case of a composite key), a tuple of the parts.
-        """
-        return cls.try_parse_as(cls._key_model, value)
 
     @classmethod
     def update_forward_refs(cls, **localns: typing.Any) -> None:

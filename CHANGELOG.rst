@@ -1,3 +1,10 @@
+Unreleased
+----------
+
+Added:
+ * The ``hrefs.model.HrefResolver`` based hyperlink resolution mechanism to
+   replace tight coupling between model classes and the web framework
+
 Version 0.7
 -----------
 

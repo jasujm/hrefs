@@ -40,13 +40,27 @@ Starlette integration
 
 .. module:: hrefs.starlette
 
-The main motivation for writing the library was to make it easy to use
+The main motivation for writing this library was to make it easy to use
 hyperlinks in `FastAPI <https://fastapi.tiangolo.com/>`_ and `Starlette
 <https://www.starlette.io/>`_ applications. See :ref:`quickstart` for a fully
 working example of how to use these classes.
 
-.. autoclass:: ReferrableModel
-
 .. autoclass:: HrefMiddleware
 
 .. autofunction:: href_context
+
+.. _custom_web_framework_api:
+
+Custom web framework integrations
+---------------------------------
+
+Developers of custom web framework integrations that work with
+:class:`BaseReferrableModel` need to implement a hyperlink resolver that acts as
+a bridge between the ``hrefs`` library and the framework.
+
+The implementation of :mod:`hrefs.starlette` can be used as a reference.
+
+.. autoclass:: hrefs.model.HrefResolver
+   :members:
+
+.. autofunction:: hrefs.model.resolve_hrefs

@@ -9,9 +9,8 @@ Configuring model key
 ---------------------
 
 By default, the primary key of a model inheriting from
-:class:`hrefs.BaseReferrableModel` (or, by extension,
-:class:`hrefs.starlette.ReferrableModel`) is called ``id``. This can be changed
-by annotating another field with :class:`hrefs.PrimaryKey`.
+:class:`hrefs.BaseReferrableModel` is called ``id``. This can be changed by
+annotating another field with :class:`hrefs.PrimaryKey`.
 
 .. code-block:: python
 
@@ -34,7 +33,9 @@ Composite keys
 ..............
 
 It is also possible to annotate multiple fields with ``PrimaryKey``. It will
-cause the primary key to be a named tuple of the annotated fields:
+cause the primary key to be a named tuple of the annotated fields. When using
+composite keys with :ref:`FastAPI or Starlette models <starlette_models>`, each
+part of the key must appear in the route template.
 
 .. code-block:: python
 
@@ -42,22 +43,6 @@ cause the primary key to be a named tuple of the annotated fields:
    from hrefs import BaseReferrableModel, PrimaryKey
 
    class Page(BaseReferrableModel):
-       book_id: Annotated[int, PrimaryKey]
-       page_number: Annotated[int, PrimaryKey]
-
-       # ...the rest of the definition...
-
-When using composite keys with :ref:`FastAPI or Starlette models
-<starlette_models>`, each part of the key must appear in the route template.
-
-
-.. code-block:: python
-
-   from typing import Annotated
-   from hrefs import PrimaryKey
-   from hrefs.starlette import ReferrableModel
-
-   class Page(ReferrableModel):
        book_id: Annotated[int, PrimaryKey]
        page_number: Annotated[int, PrimaryKey]
 
@@ -80,16 +65,15 @@ Modifying the example from the previous section we have:
 .. code-block:: python
 
    from typing import Annotated
-   from hrefs import Href, PrimaryKey
-   from hrefs.starlette import ReferrableModel
+   from hrefs import Href, BaseReferrableModel, PrimaryKey
 
-   class Book(ReferrableModel):
+   class Book(BaseReferrableModel):
        id: int
 
        class Config:
            details_view = "get_book"
 
-   class Page(ReferrableModel):
+   class Page(BaseReferrableModel):
        book: Annotated[Href[Book], PrimaryKey]
        page_number: Annotated[int, PrimaryKey]
 
@@ -128,10 +112,9 @@ key. Expanding the idea in :ref:`href_as_key`, we can have:
 .. code-block:: python
 
    from typing import Annotated
-   from hrefs import Href, PrimaryKey
-   from hrefs.starlette import ReferrableModel
+   from hrefs import Href, BaseReferrableModel, PrimaryKey
 
-   class Book(ReferrableModel):
+   class Book(BaseReferrableModel):
        self: Annotated[Href["Book"], PrimaryKey(type_=int, name="id")]
 
        class Config:
@@ -175,11 +158,10 @@ hyperlink. A recipe to achieve that is:
 
 .. code-block:: python
 
-   from hrefs import Href
-   from hrefs.starlette import ReferrableModel
+   from hrefs import Href, BaseReferrableModel
    from pydantic import root_validator
 
-   class Book(ReferrableModel):
+   class Book(BaseReferrableModel):
        id: int
        self: Href["Book"]
 
@@ -209,7 +191,9 @@ It is possible for a referrable model to inherit another:
 
 .. code-block:: python
 
-   class Book(ReferrableModel):
+   from hrefs import BaseReferrableModel
+
+   class Book(BaseReferrableModel):
        id: int
        title: str
 
