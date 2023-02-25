@@ -93,10 +93,11 @@ _href_resolver_var: contextvars.ContextVar[HrefResolver] = contextvars.ContextVa
 
 
 if typing.TYPE_CHECKING:
-
     HrefResolverVar = typing.TypeVar("HrefResolverVar", bound=HrefResolver)
 
-    def resolve_hrefs(href_resolver: HrefResolverVar) -> typing.ContextManager[HrefResolverVar]:
+    def resolve_hrefs(
+        href_resolver: HrefResolverVar,
+    ) -> typing.ContextManager[HrefResolverVar]:
         """resolve_hrefs() for mypy"""
         del href_resolver
 

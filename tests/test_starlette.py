@@ -1,3 +1,5 @@
+"""Tests for Starlette/FastAPI integration"""
+
 import contextvars
 import json
 import random
@@ -17,6 +19,8 @@ from hrefs.starlette import ReferrableModel, HrefMiddleware, href_context
 
 
 class Comment(ReferrableModel):
+    """Comment"""
+
     id: uuid.UUID
 
     class Config:
@@ -24,6 +28,8 @@ class Comment(ReferrableModel):
 
 
 class Article(ReferrableModel):
+    """Article"""
+
     self: Annotated[Href["Article"], PrimaryKey(type_=uuid.UUID, name="id")]
     comments: typing.List[Href[Comment]]
     current_revision: Href["ArticleRevision"]
@@ -33,6 +39,8 @@ class Article(ReferrableModel):
 
 
 class ArticleRevision(ReferrableModel):
+    """Article revision"""
+
     article: Annotated[Href[Article], PrimaryKey]
     revision: Annotated[int, PrimaryKey]
 
@@ -58,12 +66,15 @@ app = fastapi.FastAPI(middleware=[fastapi.middleware.Middleware(HrefMiddleware)]
 
 @pytest.fixture
 def appcontext():
+    """Provides hyperlink resolution context for Starlette apps"""
     with href_context(app, base_url="http://testserver"):
         yield
 
 
 @app.get("/articles/{id}", response_model=Article)
 async def get_article(id: uuid.UUID):
+    """Get article"""
+
     assert id == article_var.get()
     return Article(
         self=id,
@@ -74,24 +85,32 @@ async def get_article(id: uuid.UUID):
 
 @app.post("/articles")
 async def post_article(article: Article):
+    """Post article"""
+
     save_article = save_article_var.get()
     save_article(article)
 
 
 @app.get("/comments", response_model=Comment)
 async def get_comment(id: uuid.UUID):
+    """Get comment"""
+
     assert id in comments_var.get()
     return Comment(id=id)
 
 
 @app.get("/articles/{article_id}/revisions/{revision}")
 async def get_revision(article_id: uuid.UUID, revision: int):
+    """Get revision"""
+
     assert article_id == article_var.get()
     return ArticleRevision(article=article_id, revision=revision)
 
 
 @app.websocket("/comment")
 async def echo_comments(websocket: fastapi.WebSocket):
+    """Echo comment (a websocket endpoint)"""
+
     await websocket.accept()
     comment_id = await websocket.receive_json()
     with href_context(websocket):
@@ -137,11 +156,13 @@ def test_parse_url_to_href(article_id, revision, comment_ids):
     response = client.post(
         "/articles",
         content=json.dumps(
-            dict(
-                self=str(article_id),
-                comments=[f"http://testserver/comments?id={id}" for id in comment_ids],
-                current_revision=f"http://testserver/articles/{article_id}/revisions/{revision}",
-            )
+            {
+                "self": str(article_id),
+                "comments": [
+                    f"http://testserver/comments?id={id}" for id in comment_ids
+                ],
+                "current_revision": f"http://testserver/articles/{article_id}/revisions/{revision}",
+            }
         ),
     )
     assert response.status_code == fastapi.status.HTTP_200_OK, response.text
@@ -152,12 +173,12 @@ def test_parse_invalid_url_fails(article_id, comment_ids):
     response = client.post(
         "/articles",
         content=json.dumps(
-            dict(
-                self=str(article_id),
-                comments=[
+            {
+                "self": str(article_id),
+                "comments": [
                     f"http://testserver/not/a/real/route/{id}" for id in comment_ids
                 ],
-            )
+            }
         ),
     )
     assert response.status_code == fastapi.status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -172,6 +193,7 @@ def test_websocket_as_href_context():
 
 
 def test_app_as_href_context_parse_key(appcontext):
+    del appcontext
     comment_id = uuid.uuid4()
     comment = pydantic.parse_obj_as(Href[Comment], comment_id)
     assert comment == Href(
@@ -180,6 +202,7 @@ def test_app_as_href_context_parse_key(appcontext):
 
 
 def test_app_as_href_context_parse_url(appcontext):
+    del appcontext
     comment_id = uuid.uuid4()
     comment_url = f"http://testserver/comments?id={comment_id}"
     comment = pydantic.parse_obj_as(Href[Comment], comment_url)

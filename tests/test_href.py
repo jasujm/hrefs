@@ -1,13 +1,15 @@
+"""Tests for the fundamental classes"""
+
+from dataclasses import dataclass
 import json
 import typing
 
-import packaging.version as version
+from packaging import version
 from hypothesis import given, strategies as st, assume
 import pydantic
 import pytest
-from typing_extensions import Annotated
 
-from hrefs import Href, BaseReferrableModel, PrimaryKey
+from hrefs import Href, Referrable
 
 
 def _pydantic_does_not_support_field_in_modify_schema():
@@ -17,19 +19,27 @@ def _pydantic_does_not_support_field_in_modify_schema():
         return True
 
 
-class Pet(BaseReferrableModel):
+@dataclass
+class Pet(Referrable[int, str]):
+    """A simple referrable type"""
+
     id: int
+
+    def get_key(self) -> int:
+        return self.id
 
     @staticmethod
     def key_to_url(key: int) -> str:
-        return f"http://example.com/pets/{key}"
+        return f"/pets/{key}"
 
     @staticmethod
-    def url_to_key(url: str):
+    def url_to_key(url: str) -> int:
         return int(url.split("/")[-1])
 
 
 class Owner(pydantic.BaseModel):
+    """An owner of many pets"""
+
     pets: typing.List[Href[Pet]]
 
 
@@ -52,7 +62,7 @@ def test_parse_key_to_href(key):
     assert href.url == Pet.key_to_url(key)
 
 
-@given(st.from_regex(r"\Ahttp://example\.com/pets/\d+\Z"))
+@given(st.from_regex(r"\A/pets/\d+\Z"))
 def test_parse_url_to_key(url):
     href = pydantic.parse_obj_as(Href[Pet], url)
     assert href.key == Pet.url_to_key(url)
@@ -73,71 +83,6 @@ def test_parse_href_without_parameter_fails():
 def test_json_encode(owner):
     owner_json = json.loads(owner.json())
     assert owner_json["pets"] == [pet.url for pet in owner.pets]
-
-
-@given(st.integers())
-def test_primary_key_annotation(my_id) -> None:
-    class MyModel(BaseReferrableModel):
-        my_id: Annotated[int, PrimaryKey]
-
-        @staticmethod
-        def key_to_url(key: int) -> None:
-            ...
-
-        @staticmethod
-        def url_to_key(url: str):
-            ...
-
-    assert MyModel(my_id=my_id).get_key() == my_id
-
-
-def test_multiple_primary_key_annotations_fails() -> None:
-    with pytest.raises(TypeError):
-
-        class MyModel(BaseReferrableModel):
-            my_id: Annotated[int, PrimaryKey, PrimaryKey]
-
-            @staticmethod
-            def key_to_url(key: int) -> None:
-                ...
-
-            @staticmethod
-            def url_to_key(url: str):
-                ...
-
-
-def test_href_forward_reference() -> None:
-    class MyModel(BaseReferrableModel):
-        id: int
-        self: Href["MyModel"]
-
-        @pydantic.root_validator(pre=True)
-        def populate_self(cls, values):
-            values["self"] = values["id"]
-            return values
-
-        @staticmethod
-        def key_to_url(key: int):
-            return f"/{key}"
-
-        @staticmethod
-        def url_to_key(url: str):
-            ...
-
-    MyModel.update_forward_refs()
-
-    assert MyModel(id=1).self == Href(key=1, url="/1")
-
-
-@given(st.integers(), st.floats())
-def test_derived_model_inherits_referrable_properties(key, purr_frequency) -> None:
-    class Cat(Pet):
-        purr_frequency: float
-
-    cat = Cat(id=key, purr_frequency=purr_frequency)
-    href = pydantic.parse_obj_as(Href[Cat], cat)
-    assert href.key == key
-    assert href.url == Pet.key_to_url(key)
 
 
 @pytest.mark.skipif(
