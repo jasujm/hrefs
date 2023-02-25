@@ -5,6 +5,10 @@ Added:
  * The ``hrefs.model.HrefResolver`` based hyperlink resolution mechanism to
    replace tight coupling between model classes and the web framework
 
+Deprecated:
+ * ``hrefs.starlette.ReferrableModel`` since referrable models should now
+   inherit ``hrefs.BaseReferrableModel`` directly
+
 Version 0.7
 -----------
 

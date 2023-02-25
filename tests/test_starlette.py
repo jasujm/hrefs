@@ -14,11 +14,11 @@ import pydantic
 import pytest
 from typing_extensions import Annotated
 
-from hrefs import Href, PrimaryKey
-from hrefs.starlette import ReferrableModel, HrefMiddleware, href_context
+from hrefs import BaseReferrableModel, Href, PrimaryKey
+from hrefs.starlette import HrefMiddleware, href_context
 
 
-class Comment(ReferrableModel):
+class Comment(BaseReferrableModel):
     """Comment"""
 
     id: uuid.UUID
@@ -27,7 +27,7 @@ class Comment(ReferrableModel):
         details_view = "get_comment"
 
 
-class Article(ReferrableModel):
+class Article(BaseReferrableModel):
     """Article"""
 
     self: Annotated[Href["Article"], PrimaryKey(type_=uuid.UUID, name="id")]
@@ -38,7 +38,7 @@ class Article(ReferrableModel):
         details_view = "get_article"
 
 
-class ArticleRevision(ReferrableModel):
+class ArticleRevision(BaseReferrableModel):
     """Article revision"""
 
     article: Annotated[Href[Article], PrimaryKey]
@@ -214,3 +214,13 @@ def test_app_as_href_context_without_base_url_fails():
     with pytest.raises(RuntimeError):
         with href_context(app):
             pydantic.parse_obj_as(Href[Comment], comment_id)
+
+
+def test_referrable_model_deprecated():
+    # pylint: disable=import-outside-toplevel
+    from hrefs.starlette import ReferrableModel
+
+    with pytest.warns(DeprecationWarning):
+
+        class _MyModel(ReferrableModel):
+            id: int

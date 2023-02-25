@@ -1,6 +1,7 @@
 """Starlette integration"""
 
 import typing
+import warnings
 
 import pydantic
 from starlette.datastructures import URL, QueryParams
@@ -173,4 +174,14 @@ class HrefMiddleware(BaseHTTPMiddleware):
 
 
 class ReferrableModel(BaseReferrableModel):
-    """Referrable model with Starlette integration"""
+    """Referrable model with Starlette integration
+
+    .. deprecated::
+
+       Models should inherit :class:`BaseReferrableModel` directly
+    """
+
+    def __init_subclass__(cls, *args, **kwargs):
+        warnings.warn(
+            "Models should inherit BaseReferrableModel directly", DeprecationWarning
+        )
