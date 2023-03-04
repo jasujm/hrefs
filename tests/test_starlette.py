@@ -216,7 +216,7 @@ def test_app_as_href_context_without_base_url_fails():
             pydantic.parse_obj_as(Href[Comment], comment_id)
 
 
-def test_referrable_model_deprecated():
+def test_referrable_model_deprecated() -> None:
     # pylint: disable=import-outside-toplevel
     from hrefs.starlette import ReferrableModel
 
