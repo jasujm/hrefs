@@ -8,16 +8,37 @@ from starlette.datastructures import URL, QueryParams
 from starlette.requests import HTTPConnection, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.applications import Starlette
-from starlette.routing import Route
+from starlette.routing import Route, BaseRoute, Mount, Match
 
 from .model import BaseReferrableModel, HrefResolver, resolve_hrefs, _URL_MODEL
 
 RequestOrApp = typing.Union[HTTPConnection, Starlette]
 BaseUrl = typing.Union[str, URL]
+ModelType = typing.Type[BaseReferrableModel]
+AppAndModelType = typing.Tuple[Starlette, ModelType]
+
+
+def _get_path_param_keys(
+    routes: typing.Iterable[BaseRoute], name: str
+) -> typing.Optional[typing.Set[str]]:
+    for route in routes:
+        if isinstance(route, Route) and route.name == name:
+            return set(route.param_convertors.keys())
+        if isinstance(route, Mount):
+            if not route.name or name.startswith(f"{route.name}:"):
+                if route.name:
+                    name = name[(len(route.name) + 1) :]
+                path_param_keys = _get_path_param_keys(route.routes, name)
+                if path_param_keys is not None:
+                    path_param_keys.update(
+                        key for key in route.param_convertors.keys() if key != "path"
+                    )
+                return path_param_keys
+    return None
 
 
 class _StarletteHrefResolver(HrefResolver):
-    _route_cache: typing.Dict[typing.Tuple[Starlette, str], Route] = {}
+    _path_param_keys_cache: typing.Dict[AppAndModelType, typing.Set[str]] = {}
 
     def __init__(
         self, request_or_app: RequestOrApp, base_url: typing.Optional[BaseUrl]
@@ -25,19 +46,17 @@ class _StarletteHrefResolver(HrefResolver):
         self.request_or_app = request_or_app
         self.base_url = base_url
 
-    def _get_route(self, route_name: str) -> typing.Optional[Route]:
+    def _get_app(self) -> Starlette:
+        if isinstance(self.request_or_app, HTTPConnection):
+            return self.request_or_app.app
+        return self.request_or_app
+
+    def _get_routes(self) -> typing.Sequence[BaseRoute]:
         if isinstance(self.request_or_app, HTTPConnection):
             app = self.request_or_app.app
         else:
             app = self.request_or_app
-        cached_route = self._route_cache.get((app, route_name))
-        if cached_route:
-            return cached_route
-        for route in app.routes:
-            if isinstance(route, Route) and route.name == route_name:
-                self._route_cache[(app, route_name)] = route
-                return route
-        return None
+        return app.routes
 
     def _get_base_url(self) -> BaseUrl:
         if isinstance(self.request_or_app, HTTPConnection):
@@ -49,55 +68,75 @@ class _StarletteHrefResolver(HrefResolver):
         return self.base_url
 
     @staticmethod
-    def _get_details_view(model_cls: typing.Type[BaseReferrableModel]):
+    def _get_details_view(model_cls: ModelType):
         return getattr(model_cls.__config__, "details_view")
 
     def key_to_url(
-        self, key: typing.Any, *, model_cls: typing.Type[BaseReferrableModel]
+        self, key: typing.Any, *, model_cls: ModelType
     ) -> pydantic.AnyHttpUrl:
         details_view = self._get_details_view(model_cls)
-        route = self._get_route(details_view)
-        if route:
+
+        cache_key = self._get_app(), model_cls
+        path_param_keys = self._path_param_keys_cache.get(cache_key)
+        if path_param_keys is None:
+            routes = self._get_routes()
+            path_param_keys = _get_path_param_keys(routes, details_view)
+            if path_param_keys is not None:
+                self._path_param_keys_cache[cache_key] = path_param_keys
+
+        if path_param_keys is not None:
             path_and_query_params = model_cls.key_to_params(key)
-            path_param_keys = set(route.param_convertors.keys())
             path_params = {
                 k: v for (k, v) in path_and_query_params.items() if k in path_param_keys
             }
             if len(path_params) != len(path_param_keys):
                 missing_params = path_param_keys - set(path_params.keys())
                 raise ValueError(
-                    f"Could not resolve {key} into url. The following path parameters are expected in the route but missing from the model key: {', '.join(missing_params)}"
+                    f"Could not resolve {key} into url. The following path parameters are expected "
+                    f"in the route but missing from the model key: {', '.join(missing_params)}"
                 )
             query_params = {
                 k: v
                 for (k, v) in path_and_query_params.items()
                 if k not in path_param_keys
             }
-            url = URL(
-                route.url_path_for(details_view, **path_params).make_absolute_url(
-                    self._get_base_url()
-                )
-            ).replace_query_params(**query_params)
-            return _URL_MODEL.parse_obj(str(url)).__root__  # type: ignore
+            if isinstance(self.request_or_app, HTTPConnection):
+                url = self.request_or_app.url_for(details_view, **path_params)
+            else:
+                url = self.request_or_app.url_path_for(
+                    details_view, **path_params
+                ).make_absolute_url(self._get_base_url())
+            return _URL_MODEL.parse_obj(  # type: ignore
+                str(URL(url).replace_query_params(**query_params))
+            ).__root__
         raise ValueError(f"Could not resolve {key} into url")
 
     def url_to_key(
-        self, url: pydantic.AnyHttpUrl, *, model_cls: typing.Type[BaseReferrableModel]
+        self, url: pydantic.AnyHttpUrl, *, model_cls: ModelType
     ) -> typing.Any:
-        details_view = self._get_details_view(model_cls)
-        route = self._get_route(details_view)
-        if route:
-            _, scope = route.matches(
-                {"type": "http", "method": "GET", "path": url.path}
-            )
-            if scope:
-                query_params = QueryParams(url.query or "")
-                path_and_query_params = {
-                    **scope["path_params"],
-                    **query_params,
-                }
-                return model_cls.params_to_key(path_and_query_params)
-        raise ValueError(f"Could not resolve {url} into key")
+        routes = self._get_routes()
+        path = url.path
+        query_params = QueryParams(url.query or "")
+        path_params = {}
+        while True:
+            for route in routes:
+                match_type, scope = route.matches(
+                    {"type": "http", "method": "GET", "path": path}
+                )
+                if match_type == Match.FULL and scope:
+                    scope_path_params = scope.get("path_params", {})
+                    path_params.update(scope_path_params)
+                    if isinstance(route, Mount):
+                        routes = route.routes
+                        path = scope["path"]
+                        break
+                    path_and_query_params = {
+                        **path_params,
+                        **query_params,
+                    }
+                    return model_cls.params_to_key(path_and_query_params)
+            else:
+                raise ValueError(f"Could not resolve {url} into key")
 
 
 def href_context(

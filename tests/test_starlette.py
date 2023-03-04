@@ -27,12 +27,22 @@ class Comment(BaseReferrableModel):
         details_view = "get_comment"
 
 
+class Author(BaseReferrableModel):
+    """Article author"""
+
+    id: uuid.UUID
+
+    class Config:
+        details_view = "authors:get_author"
+
+
 class Article(BaseReferrableModel):
     """Article"""
 
     self: Annotated[Href["Article"], PrimaryKey(type_=uuid.UUID, name="id")]
     comments: typing.List[Href[Comment]]
     current_revision: Href["ArticleRevision"]
+    author: Href[Author]
 
     class Config:
         details_view = "get_article"
@@ -56,6 +66,7 @@ revision_var: contextvars.ContextVar[int] = contextvars.ContextVar("revision_var
 comments_var: contextvars.ContextVar[typing.List[uuid.UUID]] = contextvars.ContextVar(
     "comments_var"
 )
+author_var: contextvars.ContextVar[uuid.UUID] = contextvars.ContextVar("author_var")
 save_article_var: contextvars.ContextVar[
     typing.Callable[[Article], None]
 ] = contextvars.ContextVar("save_article_var")
@@ -80,6 +91,7 @@ async def get_article(id: uuid.UUID):
         self=id,
         comments=comments_var.get(),
         current_revision=(id, revision_var.get()),
+        author=author_var.get(),
     )
 
 
@@ -119,14 +131,33 @@ async def echo_comments(websocket: fastapi.WebSocket):
     await websocket.close()
 
 
+author_app = fastapi.FastAPI()
+
+
+@author_app.get("/{id}")
+def get_author(id: uuid.UUID):
+    """Get author"""
+
+    assert id == author_var.get()
+    return Author(id=id)
+
+
+app.mount("/authors", author_app, name="authors")
+
 client = fastapi.testclient.TestClient(app)
 
 
-@given(st.uuids(), st.integers(), st.lists(st.uuids(), min_size=1))
-def test_parse_key_to_href(article_id, revision, comment_ids):
+@given(
+    article_id=st.uuids(),
+    revision=st.integers(),
+    comment_ids=st.lists(st.uuids(), min_size=1),
+    author_id=st.uuids(),
+)
+def test_parse_key_to_href(article_id, revision, comment_ids, author_id):
     article_var.set(article_id)
     revision_var.set(revision)
     comments_var.set(comment_ids)
+    author_var.set(author_id)
     response = client.get(f"/articles/{article_id}")
     assert response.status_code == fastapi.status.HTTP_200_OK, response.text
     article = response.json()
@@ -141,16 +172,25 @@ def test_parse_key_to_href(article_id, revision, comment_ids):
         "article": f"http://testserver/articles/{article_id}",
         "revision": revision,
     }
+    author_href = article["author"]
+    author = client.get(author_href).json()
+    assert author == {"id": str(author_id)}
 
 
-@given(st.uuids(), st.integers(), st.lists(st.uuids(), min_size=1))
-def test_parse_url_to_href(article_id, revision, comment_ids):
+@given(
+    article_id=st.uuids(),
+    revision=st.integers(),
+    comment_ids=st.lists(st.uuids(), min_size=1),
+    author_id=st.uuids(),
+)
+def test_parse_url_to_href(article_id, revision, comment_ids, author_id):
     def assert_article(article: Article):
         assert article.self.key == article_id
         assert [comment_href.key for comment_href in article.comments] == comment_ids
         _article, _revision = article.current_revision.key
         assert _article.key == article_id
         assert _revision == revision
+        assert article.author.key == author_id
 
     save_article_var.set(assert_article)
     response = client.post(
@@ -162,14 +202,20 @@ def test_parse_url_to_href(article_id, revision, comment_ids):
                     f"http://testserver/comments?id={id}" for id in comment_ids
                 ],
                 "current_revision": f"http://testserver/articles/{article_id}/revisions/{revision}",
+                "author": f"http://testserver/authors/{author_id}",
             }
         ),
     )
     assert response.status_code == fastapi.status.HTTP_200_OK, response.text
 
 
-@given(st.uuids(), st.lists(st.uuids(), min_size=1))
-def test_parse_invalid_url_fails(article_id, comment_ids):
+@given(
+    article_id=st.uuids(),
+    revision=st.integers(),
+    comment_ids=st.lists(st.uuids(), min_size=1),
+    author_id=st.uuids(),
+)
+def test_parse_invalid_url_fails(article_id, revision, comment_ids, author_id):
     response = client.post(
         "/articles",
         content=json.dumps(
@@ -178,6 +224,8 @@ def test_parse_invalid_url_fails(article_id, comment_ids):
                 "comments": [
                     f"http://testserver/not/a/real/route/{id}" for id in comment_ids
                 ],
+                "current_revision": f"http://testserver/articles/{article_id}/revisions/{revision}",
+                "author": f"http://testserver/authors/{author_id}",
             }
         ),
     )

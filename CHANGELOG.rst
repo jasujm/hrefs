@@ -4,6 +4,7 @@ Unreleased
 Added:
  * The ``hrefs.model.HrefResolver`` based hyperlink resolution mechanism to
    replace tight coupling between model classes and the web framework
+ * Starlette integration now supports routes mounted via sub-application
 
 Deprecated:
  * ``hrefs.starlette.ReferrableModel`` since referrable models should now

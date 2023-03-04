@@ -68,6 +68,14 @@ parameters. Keys omitted from the path are assumed to be query parameters.
    the name of the handler function, but can also be defined explicitly using
    the ``name`` keyword argument in the ``@app.get()`` decorator.
 
+.. note::
+
+   Routes mounted via sub-applications are also supported. The library relies on
+   the `Starlette reverse URL lookup
+   <https://www.starlette.io/routing/#reverse-url-lookups>`_ to convert keys to
+   URLs, so don't forget to use the ``{prefix}:{name}`` style to refer to the
+   route in case you use named mounts.
+
 Defining a relationship to the referrable model
 ...............................................
 
