@@ -1,5 +1,8 @@
-Unreleased
-----------
+Version 0.8
+-----------
+
+Date
+  2023-03-05
 
 Added:
  * The ``hrefs.model.HrefResolver`` based hyperlink resolution mechanism to
