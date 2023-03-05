@@ -6,6 +6,10 @@ Added:
    replace tight coupling between model classes and the web framework
  * Starlette integration now supports routes mounted via sub-application
 
+Fixed:
+ * Starlette integration silently ignoring some errors when converting URL to
+   model key
+
 Deprecated:
  * ``hrefs.starlette.ReferrableModel`` since referrable models should now
    inherit ``hrefs.BaseReferrableModel`` directly

@@ -368,12 +368,12 @@ class BaseReferrableModel(
         The type of the model key based on the field annotations. Either a
         single type, or (in the case of a composite key), a tuple of the parts.
         """
-        return cls.try_parse_as(cls._key_model, value)
+        return cls._try_parse_as(cls._key_model, value)
 
     @classmethod
     def parse_as_url(cls, value: typing.Any) -> typing.Optional[pydantic.AnyHttpUrl]:
         """Parse ``value`` as ``pydantic.AnyHttpUrl``"""
-        return cls.try_parse_as(_URL_MODEL, value)
+        return cls._try_parse_as(_URL_MODEL, value)
 
     @classmethod
     def has_simple_key(cls) -> bool:
@@ -424,42 +424,48 @@ class BaseReferrableModel(
 
         Returns:
             Model key parsed from ``params``
+
+        Raises:
+           ValueError: if ``params`` does not contain sufficient elements
+             to construct the key
         """
         subkeys = []
-        for subkey_names in cls._key_map.values():
-            if isinstance(subkey_names, str):
-                subkey = params[subkey_names]
-            else:
-                subkey = [params[subkey_name] for subkey_name in subkey_names]
-            subkeys.append(subkey)
+        try:
+            for subkey_names in cls._key_map.values():
+                if isinstance(subkey_names, str):
+                    subkey = params[subkey_names]
+                else:
+                    subkey = [params[subkey_name] for subkey_name in subkey_names]
+                subkeys.append(subkey)
+        except KeyError as ex:
+            missing_keys = set(cls._key_map.keys()) - set(params.keys())
+            raise ValueError(
+                f"Could not convert {params} to key of {cls.__name__}. "
+                f"Missing the following params: {', '.join(missing_keys)}"
+            ) from ex
         if cls.has_simple_key():
             subkeys = subkeys[0]
-        return cls.parse_as_key(subkeys)
-
-    @staticmethod
-    def try_parse_as(
-        model: typing.Type[pydantic.BaseModel], value: typing.Any
-    ) -> typing.Optional[typing.Any]:
-        """Parse ``value`` as ``model`` but swallow validation error
-
-        Arguments:
-            model: the model parsed to
-            value: the value to parse
-
-        Returns:
-            ``value`` parsed as ``model``, or ``None`` on validation error
-        """
-        try:
-            parsed_value = model.parse_obj(value)
-        except pydantic.ValidationError:
-            return None
-        return getattr(parsed_value, "__root__")
+        return cls._parse_as(cls._key_model, subkeys)
 
     @classmethod
     def update_forward_refs(cls, **localns: typing.Any) -> None:
         super().update_forward_refs(**localns)
         cls._key_model.update_forward_refs(**localns)
         cls._calculate_key_map()
+
+    @staticmethod
+    def _parse_as(model: typing.Type[pydantic.BaseModel], value: typing.Any):
+        parsed_value = model.parse_obj(value)
+        return getattr(parsed_value, "__root__")
+
+    @classmethod
+    def _try_parse_as(
+        cls, model: typing.Type[pydantic.BaseModel], value: typing.Any
+    ) -> typing.Optional[typing.Any]:
+        try:
+            return cls._parse_as(model, value)
+        except pydantic.ValidationError:
+            return None
 
     @classmethod
     def _calculate_key_map(cls) -> None:
