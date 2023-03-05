@@ -1,5 +1,7 @@
 """Starlette integration"""
 
+import functools
+import itertools
 import typing
 import warnings
 
@@ -15,31 +17,55 @@ from .model import BaseReferrableModel, HrefResolver, resolve_hrefs, _URL_MODEL
 RequestOrApp = typing.Union[HTTPConnection, Starlette]
 BaseUrl = typing.Union[str, URL]
 ModelType = typing.Type[BaseReferrableModel]
-AppAndModelType = typing.Tuple[Starlette, ModelType]
+RouteChain = typing.List[typing.Union[Route, Mount]]
 
 
-def _get_path_param_keys(
+def _get_details_view(model_cls: ModelType):
+    return getattr(model_cls.__config__, "details_view")
+
+
+def _calculate_route_chain(
     routes: typing.Iterable[BaseRoute], name: str
-) -> typing.Optional[typing.Set[str]]:
+) -> typing.Optional[RouteChain]:
     for route in routes:
         if isinstance(route, Route) and route.name == name:
-            return set(route.param_convertors.keys())
+            return [route]
         if isinstance(route, Mount):
-            if not route.name or name.startswith(f"{route.name}:"):
+            if route.name or name.startswith(f"{route.name}:"):
                 if route.name:
                     name = name[(len(route.name) + 1) :]
-                path_param_keys = _get_path_param_keys(route.routes, name)
-                if path_param_keys is not None:
-                    path_param_keys.update(
-                        key for key in route.param_convertors.keys() if key != "path"
-                    )
-                return path_param_keys
+                route_chain = _calculate_route_chain(route.routes, name)
+                if route_chain is not None:
+                    route_chain.insert(0, route)
+                    return route_chain
+    return None
+
+
+def _get_params_from_route(route: typing.Union[Route, Mount]):
+    keys = set(route.param_convertors.keys())
+    if isinstance(route, Mount):
+        keys.remove("path")
+    return keys
+
+
+@functools.lru_cache(maxsize=None)
+def _get_route_chain(app: Starlette, model_cls: ModelType):
+    return _calculate_route_chain(app.routes, _get_details_view(model_cls))
+
+
+@functools.lru_cache(maxsize=None)
+def _get_path_param_keys(app: Starlette, model_cls: ModelType):
+    route_chain = _get_route_chain(app, model_cls)
+    if route_chain is not None:
+        return set(
+            itertools.chain.from_iterable(
+                _get_params_from_route(route) for route in route_chain
+            )
+        )
     return None
 
 
 class _StarletteHrefResolver(HrefResolver):
-    _path_param_keys_cache: typing.Dict[AppAndModelType, typing.Set[str]] = {}
-
     def __init__(
         self, request_or_app: RequestOrApp, base_url: typing.Optional[BaseUrl]
     ):
@@ -67,24 +93,12 @@ class _StarletteHrefResolver(HrefResolver):
             )
         return self.base_url
 
-    @staticmethod
-    def _get_details_view(model_cls: ModelType):
-        return getattr(model_cls.__config__, "details_view")
-
     def key_to_url(
         self, key: typing.Any, *, model_cls: ModelType
     ) -> pydantic.AnyHttpUrl:
-        details_view = self._get_details_view(model_cls)
-
-        cache_key = self._get_app(), model_cls
-        path_param_keys = self._path_param_keys_cache.get(cache_key)
-        if path_param_keys is None:
-            routes = self._get_routes()
-            path_param_keys = _get_path_param_keys(routes, details_view)
-            if path_param_keys is not None:
-                self._path_param_keys_cache[cache_key] = path_param_keys
-
+        path_param_keys = _get_path_param_keys(self._get_app(), model_cls)
         if path_param_keys is not None:
+            details_view = _get_details_view(model_cls)
             path_and_query_params = model_cls.key_to_params(key)
             path_params = {
                 k: v for (k, v) in path_and_query_params.items() if k in path_param_keys
@@ -109,34 +123,42 @@ class _StarletteHrefResolver(HrefResolver):
             return _URL_MODEL.parse_obj(  # type: ignore
                 str(URL(url).replace_query_params(**query_params))
             ).__root__
-        raise ValueError(f"Could not resolve {key} into url")
+        raise ValueError(f"Could not resolve {key} into URL to {model_cls.__name__}")
 
     def url_to_key(
         self, url: pydantic.AnyHttpUrl, *, model_cls: ModelType
     ) -> typing.Any:
-        routes = self._get_routes()
+        route_chain = _get_route_chain(self._get_app(), model_cls)
         path = url.path
         query_params = QueryParams(url.query or "")
         path_params = {}
-        while True:
-            for route in routes:
+        if route_chain is not None and len(route_chain) > 0:
+            *mount_routes, final_route = route_chain
+            for route in mount_routes:
+                assert isinstance(route, Mount)
                 match_type, scope = route.matches(
                     {"type": "http", "method": "GET", "path": path}
                 )
                 if match_type == Match.FULL and scope:
                     scope_path_params = scope.get("path_params", {})
                     path_params.update(scope_path_params)
-                    if isinstance(route, Mount):
-                        routes = route.routes
-                        path = scope["path"]
-                        break
+                    path = scope["path"]
+                else:
+                    break
+            else:
+                assert isinstance(final_route, Route)
+                match_type, scope = final_route.matches(
+                    {"type": "http", "method": "GET", "path": path}
+                )
+                if match_type == Match.FULL and scope:
+                    scope_path_params = scope.get("path_params", {})
+                    path_params.update(scope_path_params)
                     path_and_query_params = {
                         **path_params,
                         **query_params,
                     }
                     return model_cls.params_to_key(path_and_query_params)
-            else:
-                raise ValueError(f"Could not resolve {url} into key")
+        raise ValueError(f"Could not resolve {url} into key of {model_cls.__name__}")
 
 
 def href_context(

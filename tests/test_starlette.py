@@ -9,7 +9,7 @@ import uuid
 import fastapi
 import fastapi.middleware
 import fastapi.testclient
-from hypothesis import given, strategies as st
+from hypothesis import given, strategies as st, settings, HealthCheck
 import pydantic
 import pytest
 from typing_extensions import Annotated
@@ -230,6 +230,14 @@ def test_parse_invalid_url_fails(article_id, revision, comment_ids, author_id):
         ),
     )
     assert response.status_code == fastapi.status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(id=st.uuids())
+def test_mixing_models_not_allowed_even_if_keys_are_compatible(id, appcontext):
+    del appcontext
+    with pytest.raises(pydantic.ValidationError):
+        pydantic.parse_obj_as(Href[Comment], f"http://testserver/authors/{id}")
 
 
 def test_websocket_as_href_context():
