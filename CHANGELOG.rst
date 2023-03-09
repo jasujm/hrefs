@@ -1,3 +1,10 @@
+Unreleased
+----------
+
+Changed
+ * Clean up unit tests
+ * Improve documentation about testing
+
 Version 0.8
 -----------
 

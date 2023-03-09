@@ -1,12 +1,13 @@
 """Test for referrable pydantic models"""
 
-from hypothesis import given, strategies as st, settings, HealthCheck
-import pytest
-
+from hypothesis import given, strategies as st
 import pydantic
+import pytest
 from typing_extensions import Annotated
 
 from hrefs import BaseReferrableModel, PrimaryKey, Href
+
+pytestmark = pytest.mark.usefixtures("href_resolver")
 
 
 @given(st.integers())
@@ -24,9 +25,7 @@ def test_multiple_primary_key_annotations_fails() -> None:
             my_id: Annotated[int, PrimaryKey, PrimaryKey]
 
 
-def test_href_forward_reference(href_resolver) -> None:
-    del href_resolver
-
+def test_href_forward_reference() -> None:
     class _MyModel(BaseReferrableModel):
         id: int
         self: Href["_MyModel"]
@@ -41,13 +40,8 @@ def test_href_forward_reference(href_resolver) -> None:
     assert _MyModel(id=1).self == Href(key=1, url="http://example.com/_mymodels/1")
 
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(key=st.integers(), purr_frequency=st.floats())
-def test_derived_model_inherits_referrable_properties(
-    key, purr_frequency, href_resolver
-) -> None:
-    del href_resolver
-
+def test_derived_model_inherits_referrable_properties(key, purr_frequency) -> None:
     class _Pet(BaseReferrableModel):
         id: int
 

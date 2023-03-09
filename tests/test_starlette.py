@@ -9,7 +9,7 @@ import uuid
 import fastapi
 import fastapi.middleware
 import fastapi.testclient
-from hypothesis import given, strategies as st, settings, HealthCheck
+from hypothesis import given, strategies as st
 import pydantic
 import pytest
 from typing_extensions import Annotated
@@ -73,13 +73,6 @@ save_article_var: contextvars.ContextVar[
 
 
 app = fastapi.FastAPI(middleware=[fastapi.middleware.Middleware(HrefMiddleware)])
-
-
-@pytest.fixture
-def appcontext():
-    """Provides hyperlink resolution context for Starlette apps"""
-    with href_context(app, base_url="http://testserver"):
-        yield
 
 
 @app.get("/articles/{id}", response_model=Article)
@@ -209,124 +202,125 @@ def test_parse_url_to_href(article_id, revision, comment_ids, author_id):
     assert response.status_code == fastapi.status.HTTP_200_OK, response.text
 
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    url=st.one_of(
-        st.just("http://testserver/not/a/real/route"),
-        st.just("http://testserver/comments?wrong=query"),
-        st.integers().map(lambda n: f"http://testserver/comments?id={n}"),
-        st.uuids().map(lambda id: f"http://testserver/articles/{id}"),
+@pytest.fixture(scope="class")
+def appcontext():
+    """Provides hyperlink resolution context for Starlette apps"""
+    with href_context(app, base_url="http://testserver"):
+        yield
+
+
+@pytest.mark.usefixtures("appcontext")
+class TestParsing:
+    """Parsing tests"""
+
+    @given(comment_id=st.uuids())
+    def test_app_as_href_context_parse_key(self, comment_id):
+        comment = pydantic.parse_obj_as(Href[Comment], comment_id)
+        assert comment == Href(
+            key=comment_id, url=f"http://testserver/comments?id={comment_id}"
+        )
+
+    @given(comment_id=st.uuids())
+    def test_app_as_href_context_parse_url(self, comment_id):
+        comment_url = f"http://testserver/comments?id={comment_id}"
+        comment = pydantic.parse_obj_as(Href[Comment], comment_url)
+        assert comment == Href(key=comment_id, url=comment_url)
+
+    @given(
+        url=st.one_of(
+            st.just("http://testserver/not/a/real/route"),
+            st.just("http://testserver/comments?wrong=query"),
+            st.integers().map(lambda n: f"http://testserver/comments?id={n}"),
+            st.uuids().map(lambda id: f"http://testserver/articles/{id}"),
+        )
     )
-)
-def test_parse_invalid_url_fails_comments(url, appcontext):
-    del appcontext
-    with pytest.raises(pydantic.ValidationError):
-        pydantic.parse_obj_as(Href[Comment], url)
+    def test_parse_invalid_url_fails_comments(self, url):
+        with pytest.raises(pydantic.ValidationError):
+            pydantic.parse_obj_as(Href[Comment], url)
 
-
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    key=st.one_of(
-        st.booleans(),
-        st.integers(),
-        st.tuples(st.booleans(), st.integers()),
+    @given(
+        key=st.one_of(
+            st.booleans(),
+            st.integers(),
+            st.tuples(st.booleans(), st.integers()),
+        )
     )
-)
-def test_parse_invalid_key_fails_comments(key, appcontext):
-    del appcontext
-    with pytest.raises(pydantic.ValidationError):
-        pydantic.parse_obj_as(Href[Comment], key)
+    def test_parse_invalid_key_fails_comments(self, key):
+        with pytest.raises(pydantic.ValidationError):
+            pydantic.parse_obj_as(Href[Comment], key)
 
-
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    url=st.one_of(
-        st.just("http://testserver/not/a/real/route"),
-        st.integers().map(lambda n: f"http://testserver/authors/{n}"),
-        st.uuids().map(lambda id: f"http://testserver/comments?id={id}"),
+    @given(
+        url=st.one_of(
+            st.just("http://testserver/not/a/real/route"),
+            st.integers().map(lambda n: f"http://testserver/authors/{n}"),
+            st.uuids().map(lambda id: f"http://testserver/comments?id={id}"),
+        )
     )
-)
-def test_parse_invalid_url_fails_authors(url, appcontext):
-    del appcontext
-    with pytest.raises(pydantic.ValidationError):
-        pydantic.parse_obj_as(Href[Author], url)
+    def test_parse_invalid_url_fails_authors(self, url):
+        with pytest.raises(pydantic.ValidationError):
+            pydantic.parse_obj_as(Href[Author], url)
 
-
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    key=st.one_of(
-        st.booleans(),
-        st.integers(),
-        st.tuples(st.booleans(), st.integers()),
+    @given(
+        key=st.one_of(
+            st.booleans(),
+            st.integers(),
+            st.tuples(st.booleans(), st.integers()),
+        )
     )
-)
-def test_parse_invalid_key_fails_authors(key, appcontext):
-    del appcontext
-    with pytest.raises(pydantic.ValidationError):
-        pydantic.parse_obj_as(Href[Author], key)
+    def test_parse_invalid_key_fails_authors(self, key):
+        with pytest.raises(pydantic.ValidationError):
+            pydantic.parse_obj_as(Href[Author], key)
 
-
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    url=st.one_of(
-        st.just("http://testserver/not/a/real/route"),
-        st.integers().map(lambda n: f"http://testserver/articles/{n}"),
-        st.uuids().map(lambda id: f"http://testserver/comments?id={id}"),
+    @given(
+        url=st.one_of(
+            st.just("http://testserver/not/a/real/route"),
+            st.integers().map(lambda n: f"http://testserver/articles/{n}"),
+            st.uuids().map(lambda id: f"http://testserver/comments?id={id}"),
+        )
     )
-)
-def test_parse_invalid_url_fails_articles(url, appcontext):
-    del appcontext
-    with pytest.raises(pydantic.ValidationError):
-        pydantic.parse_obj_as(Href[Article], url)
+    def test_parse_invalid_url_fails_articles(self, url):
+        with pytest.raises(pydantic.ValidationError):
+            pydantic.parse_obj_as(Href[Article], url)
 
-
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    key=st.one_of(
-        st.booleans(),
-        st.integers(),
-        st.tuples(st.booleans(), st.integers()),
+    @given(
+        key=st.one_of(
+            st.booleans(),
+            st.integers(),
+            st.tuples(st.booleans(), st.integers()),
+        )
     )
-)
-def test_parse_invalid_key_fails_articles(key, appcontext):
-    del appcontext
-    with pytest.raises(pydantic.ValidationError):
-        pydantic.parse_obj_as(Href[Article], key)
+    def test_parse_invalid_key_fails_articles(self, key):
+        with pytest.raises(pydantic.ValidationError):
+            pydantic.parse_obj_as(Href[Article], key)
 
-
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    url=st.one_of(
-        st.just("http://testserver/not/a/real/route"),
-        st.tuples(st.uuids(), st.uuids()).map(
-            lambda key: f"http://testserver/articles/{key[0]}/revisions/{key[1]}"
-        ),
-        st.tuples(st.integers(), st.integers()).map(
-            lambda key: f"http://testserver/articles/{key[0]}/revisions/{key[1]}"
-        ),
-        st.tuples(st.uuids(), st.integers()).map(
-            lambda key: f"http://testserver/articles/{key[0]}?revision={key[1]}"
-        ),
+    @given(
+        url=st.one_of(
+            st.just("http://testserver/not/a/real/route"),
+            st.tuples(st.uuids(), st.uuids()).map(
+                lambda key: f"http://testserver/articles/{key[0]}/revisions/{key[1]}"
+            ),
+            st.tuples(st.integers(), st.integers()).map(
+                lambda key: f"http://testserver/articles/{key[0]}/revisions/{key[1]}"
+            ),
+            st.tuples(st.uuids(), st.integers()).map(
+                lambda key: f"http://testserver/articles/{key[0]}?revision={key[1]}"
+            ),
+        )
     )
-)
-def test_parse_invalid_url_fails_revisions(url, appcontext):
-    del appcontext
-    with pytest.raises(pydantic.ValidationError):
-        pydantic.parse_obj_as(Href[ArticleRevision], url)
+    def test_parse_invalid_url_fails_revisions(self, url):
+        with pytest.raises(pydantic.ValidationError):
+            pydantic.parse_obj_as(Href[ArticleRevision], url)
 
-
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    key=st.one_of(
-        st.booleans(),
-        st.integers(),
-        st.tuples(st.booleans(), st.integers()),
+    @given(
+        key=st.one_of(
+            st.booleans(),
+            st.integers(),
+            st.tuples(st.booleans(), st.integers()),
+        )
     )
-)
-def test_parse_invalid_key_fails_revisions(key, appcontext):
-    del appcontext
-    with pytest.raises(pydantic.ValidationError):
-        pydantic.parse_obj_as(Href[ArticleRevision], key)
+    def test_parse_invalid_key_fails_revisions(self, key):
+        with pytest.raises(pydantic.ValidationError):
+            pydantic.parse_obj_as(Href[ArticleRevision], key)
 
 
 def test_websocket_as_href_context():
@@ -337,25 +331,8 @@ def test_websocket_as_href_context():
     assert response == f"http://testserver/comments?id={comment_id}"
 
 
-def test_app_as_href_context_parse_key(appcontext):
-    del appcontext
-    comment_id = uuid.uuid4()
-    comment = pydantic.parse_obj_as(Href[Comment], comment_id)
-    assert comment == Href(
-        key=comment_id, url=f"http://testserver/comments?id={comment_id}"
-    )
-
-
-def test_app_as_href_context_parse_url(appcontext):
-    del appcontext
-    comment_id = uuid.uuid4()
-    comment_url = f"http://testserver/comments?id={comment_id}"
-    comment = pydantic.parse_obj_as(Href[Comment], comment_url)
-    assert comment == Href(key=comment_id, url=comment_url)
-
-
-def test_app_as_href_context_without_base_url_fails():
-    comment_id = uuid.uuid4()
+@given(comment_id=st.uuids())
+def test_app_as_href_context_without_base_url_fails(comment_id):
     with pytest.raises(RuntimeError):
         with href_context(app):
             pydantic.parse_obj_as(Href[Comment], comment_id)

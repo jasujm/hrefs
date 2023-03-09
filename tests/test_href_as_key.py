@@ -1,11 +1,15 @@
 """Tests for using hyperlinks as keys"""
 
-from hypothesis import given, strategies as st, settings, HealthCheck
+# pylint: disable=duplicate-code
+
+from hypothesis import given, strategies as st
 import pydantic
 import pytest
 from typing_extensions import Annotated
 
 from hrefs import Href, BaseReferrableModel, PrimaryKey
+
+pytestmark = pytest.mark.usefixtures("href_resolver")
 
 
 class Book(BaseReferrableModel):
@@ -91,79 +95,59 @@ class Bookmark(BaseReferrableModel):
 Book.update_forward_refs()
 
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(key=st.integers())
-def test_self_href_from_key(key, href_resolver):
-    del href_resolver
+def test_self_href_from_key(key):
     book = Book(self=key)
     assert book.self == Href(key=key, url=Book.key_to_url(key))
 
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(url=st.from_regex(r"\Ahttp://example\.com/books/\d+\Z"))
-def test_self_href_from_url(url, href_resolver):
-    del href_resolver
+def test_self_href_from_url(url):
     book = Book(self=url)
     assert book.self == Href(key=Book.url_to_key(url), url=url)
 
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(book_id=st.from_type(Href[Book]))
-def test_parse_href_key_from_referred_model(book_id, href_resolver):
-    del href_resolver
+def test_parse_href_key_from_referred_model(book_id):
     book = Book(self=book_id)
     href = pydantic.parse_obj_as(Href[BookCover], book)
     assert href.key == book.self
     assert href.url == BookCover.key_to_url(book.self)
 
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(book_id=st.integers())
-def test_parse_href_key_from_referred_key(book_id, href_resolver):
-    del href_resolver
+def test_parse_href_key_from_referred_key(book_id):
     href = pydantic.parse_obj_as(Href[BookCover], book_id)
     key = Href(key=book_id, url=Book.key_to_url(book_id))
     assert href.key == key
     assert href.url == BookCover.key_to_url(key)
 
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(url=st.from_regex(r"\Ahttp://example\.com/books/\d+/cover\Z"))
-def test_parse_href_key_from_referred_url(url, href_resolver):
-    del href_resolver
+def test_parse_href_key_from_referred_url(url):
     href = pydantic.parse_obj_as(Href[BookCover], url)
     assert href.key == BookCover.url_to_key(url)
     assert href.url == url
 
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(book_id=st.from_type(Href[Book]), page_number=st.integers())
-def test_parse_composite_href_key_from_referred_model(
-    book_id, page_number, href_resolver
-):
-    del href_resolver
+def test_parse_composite_href_key_from_referred_model(book_id, page_number):
     book = Book(self=book_id)
     href = pydantic.parse_obj_as(Href[Page], (book, page_number))
     assert href.key == (book.self, page_number)
     assert href.url == Page.key_to_url((book.self, page_number))
 
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(book_id=st.integers(), page_number=st.integers())
-def test_parse_composite_href_key_from_referred_key(
-    book_id, page_number, href_resolver
-):
-    del href_resolver
+def test_parse_composite_href_key_from_referred_key(book_id, page_number):
     href = pydantic.parse_obj_as(Href[Page], (book_id, page_number))
     key = (Href(key=book_id, url=Book.key_to_url(book_id)), page_number)
     assert href.key == key
     assert href.url == Page.key_to_url(key)
 
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(url=st.from_regex(r"\Ahttp://example\.com/books/\d+/pages/\d+\Z"))
-def test_parse_composite_href_key_from_referred_url(url, href_resolver):
-    del href_resolver
+def test_parse_composite_href_key_from_referred_url(url):
     href = pydantic.parse_obj_as(Href[Page], url)
     assert href.key == Page.url_to_key(url)
     assert href.url == url
@@ -173,22 +157,16 @@ def test_parse_composite_href_key_from_referred_url(url, href_resolver):
 # hrefs as model keys
 
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(book_id=st.from_type(Href[Book]), page_number=st.integers())
-def test_parse_indirect_href_key_from_referred_model(
-    book_id, page_number, href_resolver
-):
-    del href_resolver
+def test_parse_indirect_href_key_from_referred_model(book_id, page_number):
     page = Page(book=book_id, page_number=page_number)
     href = pydantic.parse_obj_as(Href[Bookmark], page)
     assert href.key == pydantic.parse_obj_as(Href[Page], (page.book, page_number))
     assert href.url == Bookmark.key_to_url((page.book, page_number))
 
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(book_id=st.integers(), page_number=st.integers())
-def test_parse_indirect_href_key_from_referred_key(book_id, page_number, href_resolver):
-    del href_resolver
+def test_parse_indirect_href_key_from_referred_key(book_id, page_number):
     href = pydantic.parse_obj_as(Href[Bookmark], (book_id, page_number))
     page_key = (Href(key=book_id, url=Book.key_to_url(book_id)), page_number)
     key = Href(key=page_key, url=Page.key_to_url((book_id, page_number)))
@@ -196,10 +174,8 @@ def test_parse_indirect_href_key_from_referred_key(book_id, page_number, href_re
     assert href.url == Bookmark.key_to_url(key)
 
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(url=st.from_regex(r"\Ahttp://example\.com/books/\d+/pages/\d+/bookmark\Z"))
-def test_parse_indirect_href_key_from_referred_url(url, href_resolver):
-    del href_resolver
+def test_parse_indirect_href_key_from_referred_url(url):
     href = pydantic.parse_obj_as(Href[Bookmark], url)
     assert href.key == Bookmark.url_to_key(url)
     assert href.url == url

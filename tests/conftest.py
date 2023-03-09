@@ -30,7 +30,7 @@ class _MyHrefResolver(HrefResolver):
         return tuple(int(part) for part in parts)
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def href_resolver():
     """Provides hyperlink resolver for tests"""
 

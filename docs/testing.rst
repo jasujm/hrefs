@@ -15,11 +15,16 @@ generating hyperlinks:
 
 .. code-block:: python
 
-   from hrefs import Href, BaseReferrableModel
+   from dataclasses import dataclass
+   from hrefs import Href, Referrable
    from hypothesis import given, strategies as st
 
-   class Book(BaseReferrableModel):
+   @dataclass
+   class Book(Referrable):
        id: int
+
+       def get_key(self) -> int:
+           return self.id
 
        @staticmethod
        def key_to_url(key: int) -> str:
@@ -39,15 +44,13 @@ Using ``hypothesis`` with FastAPI/Starlette
 
 Generating URLs for hyperlinks in FastAPI/Starlette normally relies on
 :class:`hrefs.starlette.HrefMiddleware` to expose the request context to the
-library. This is usually no issue in request handlers, but may become an
-obstacle when trying to generate hyperlinks with the ``@given``
-decorator. That's because the decorator applies to the test case defined at the
-module level --- not inside a request handler!
+library. But the middleware doesn't directly work with the ``@given`` decorator,
+since that would require ``hypothesis`` to run inside your Starlette
+application. But ``hypothesis`` already wants to generate the data before your
+test case even takes over.
 
-You can use :func:`hrefs.starlette.href_context()` to set the application under
-test to be the hyperlink context. Wrapping this in a fixture enables ``@given``
-to do its magic for hyperlinks. Here is an example using `pytest
-<https://docs.pytest.org/>`_:
+In order to give ``hypothesis`` the context, you can use fixtures. Here is an
+example using `pytest <https://docs.pytest.org/>`_:
 
 .. code-block:: python
 
@@ -55,7 +58,7 @@ to do its magic for hyperlinks. Here is an example using `pytest
    from fastapi import FastAPI
    from hrefs import BaseReferrableModel
    from hrefs.starlette import href_context
-   from hypothesis import given, strategies as st, settings, HealthCheck
+   from hypothesis import given, strategies as st
 
    app = FastAPI(...)
 
@@ -64,12 +67,17 @@ to do its magic for hyperlinks. Here is an example using `pytest
 
        # ...the rest of the definitions...
 
-   @fixture
+   @fixture(scope="module", autouse=True)
    def appcontext():
        with href_context(app, base_url="http://testserver"):
-           yield  # see https://docs.pytest.org/en/7.1.x/how-to/fixtures.html#yield-fixtures-recommended
+           yield
 
    @given(st.from_type(Href[Book]))
-   @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-   def test_hrefs_with_hypothesis(appcontext, href):
+   def test_hrefs_with_hypothesis(href):
+       assert isinstance(href, Href)
        assert href.url == f"http://testserver/books/{href.key}"
+
+The example uses a module-scoped fixture. There is nothing wrong in using
+function-scoped fixtures, but they are unnecessarily granular and `hypothesis
+will warn against them by default
+<https://hypothesis.readthedocs.io/en/latest/healthchecks.html#hypothesis.HealthCheck.function_scoped_fixture>`_.
