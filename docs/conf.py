@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath(".."))
 # -- Project information -----------------------------------------------------
 
 project = "hrefs"
-copyright = "2021–2022, Jaakko Moisio"
+copyright = "2021–2023, Jaakko Moisio"
 author = "Jaakko Moisio"
 
 
