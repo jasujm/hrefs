@@ -1,6 +1,10 @@
 Hyperlinks for pydantic models
 ==============================
 
+Read `a blog post from the library author
+<https://www.jmoisio.eu/en/blog/2023/03/12/a-library-for-managing-hyperlinks-in-modern-python-web-applications/>`_
+discussing why this library exists.
+
 In a typical web application relationships between resources are modeled by
 primary and foreign keys in a database (integers, UUIDs, etc.). The most natural
 way to represent relationships in REST APIs is by URLs to the related resources
@@ -14,7 +18,9 @@ and URLs:
 
 .. code-block:: python
 
-   class Book(ReferrableModel):
+   from hrefs import BaseReferrableModel
+
+   class Book(BaseReferrableModel):
        id: int
 
        class Config:
@@ -23,11 +29,26 @@ and URLs:
    class Library(BaseModel):
        books: List[Href[Book]]
 
+   @app.get("/books/{id}")
+   def get_book(id: int) -> Book:
+       return Book(id=id)
+
    @app.get("/library")
-   def get_library():
-       # Will produce something like:
-       # {"books":["http://example.com/books/1","http://example.com/books/2","http://example.com/books/3"]}
-       return Library(books=[1,2,3]).json()
+   def get_library() -> Library:
+       """
+       Will serialize into:
+       {"books":["https://example.com/books/1","https://example.com/books/2","https://example.com/books/3"]}
+       """
+       return Library(books=[1,2,3])
+
+   @app.post("/library")
+   def post_library(library: Library):
+       """
+       Assuming the request contains
+       {"books":["https://example.com/books/1","https://example.com/books/2","https://example.com/books/3"]}
+       Will deserialize into: [1,2,3]
+       """
+       write_to_database([href.key for href in library.books])
 
 ``hrefs`` was written especially with `FastAPI <https://fastapi.tiangolo.com/>`_
 in mind, but integrates into any application or framework using pydantic to
