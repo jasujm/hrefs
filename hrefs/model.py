@@ -309,7 +309,6 @@ class _ReferrableModelMeta(pydantic.main.ModelMetaclass):
         return pydantic.create_model("key_model", __root__=(key_type, ...))
 
 
-# pylint: disable=abstract-method
 class BaseReferrableModel(
     pydantic.BaseModel, Referrable, metaclass=_ReferrableModelMeta
 ):
