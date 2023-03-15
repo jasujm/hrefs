@@ -199,6 +199,7 @@ def href_context(
            with href_context(websocket):
                # here you can create and parse Href[Book] instances
                # the base URL will be inferred from the connection
+           await websocket.close()
 
     If you want to use an application as hyperlink context, you'll need to
     provide base URL manually:

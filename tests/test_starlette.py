@@ -1,211 +1,118 @@
 """Tests for Starlette/FastAPI integration"""
 
-import contextvars
-import json
-import random
-import typing
-import uuid
+# pylint: disable=broad-exception-caught
 
-import fastapi
-import fastapi.middleware
-import fastapi.testclient
-from hypothesis import given, strategies as st
+import uuid
+from urllib.parse import quote_plus as quote
+
+from hypothesis import given, strategies as st, assume, provisional as pst
 import pydantic
 import pytest
+from starlette.applications import Starlette
+from starlette.middleware import Middleware
+from starlette.requests import Request
+from starlette.responses import PlainTextResponse
+from starlette.routing import Route, Mount, WebSocketRoute
+from starlette.testclient import TestClient
+from starlette.websockets import WebSocket
 from typing_extensions import Annotated
 
 from hrefs import BaseReferrableModel, Href, PrimaryKey
 from hrefs.starlette import HrefMiddleware, href_context
 
 
-class Comment(BaseReferrableModel):
-    """Comment"""
+class Quest(BaseReferrableModel):
+    """Quest
+
+    A plain old model
+    """
 
     id: uuid.UUID
 
     class Config:
-        details_view = "get_comment"
+        details_view = "get_quest"
 
 
-class Author(BaseReferrableModel):
-    """Article author"""
+class Hero(BaseReferrableModel):
+    """Hero seeking quests
 
-    id: uuid.UUID
+    Model whose key is a hyperlink"""
 
-    class Config:
-        details_view = "authors:get_author"
-
-
-class Article(BaseReferrableModel):
-    """Article"""
-
-    self: Annotated[Href["Article"], PrimaryKey(type_=uuid.UUID, name="id")]
-    comments: typing.List[Href[Comment]]
-    current_revision: Href["ArticleRevision"]
-    author: Href[Author]
+    self: Annotated[Href["Hero"], PrimaryKey(name="id", type_=uuid.UUID)]
 
     class Config:
-        details_view = "get_article"
+        details_view = "get_hero"
 
 
-class ArticleRevision(BaseReferrableModel):
-    """Article revision"""
+Hero.update_forward_refs()
 
-    article: Annotated[Href[Article], PrimaryKey]
-    revision: Annotated[int, PrimaryKey]
+
+class JournalEntry(BaseReferrableModel):
+    """Entry in a hero's journal
+
+    Model whose key consists of multiple path parameters"""
+
+    hero: Annotated[Href[Hero], PrimaryKey]
+    entry: Annotated[int, PrimaryKey]
 
     class Config:
-        details_view = "get_revision"
+        details_view = "heroes:get_journal"
 
 
-Article.update_forward_refs()
+class Familiar(BaseReferrableModel):
+    """Familiar of a hero
+
+    Model whose key consists of path and query parameters
+    """
+
+    hero: Annotated[Href[Hero], PrimaryKey]
+    name: Annotated[str, PrimaryKey]
+
+    class Config:
+        details_view = "heroes:get_familiar"
 
 
-article_var: contextvars.ContextVar[uuid.UUID] = contextvars.ContextVar("article_var")
-revision_var: contextvars.ContextVar[int] = contextvars.ContextVar("revision_var")
-comments_var: contextvars.ContextVar[typing.List[uuid.UUID]] = contextvars.ContextVar(
-    "comments_var"
-)
-author_var: contextvars.ContextVar[uuid.UUID] = contextvars.ContextVar("author_var")
-save_article_var: contextvars.ContextVar[
-    typing.Callable[[Article], None]
-] = contextvars.ContextVar("save_article_var")
+def _dummy_endpoint(request):
+    del request
 
 
-app = fastapi.FastAPI(middleware=[fastapi.middleware.Middleware(HrefMiddleware)])
+def _http_endpoint(request: Request):
+    hero = Hero(self=request.query_params["id"])
+    return PlainTextResponse(hero.self.url)
 
 
-@app.get("/articles/{id}", response_model=Article)
-async def get_article(id: uuid.UUID):
-    """Get article"""
-
-    assert id == article_var.get()
-    return Article(
-        self=id,
-        comments=comments_var.get(),
-        current_revision=(id, revision_var.get()),
-        author=author_var.get(),
-    )
-
-
-@app.post("/articles")
-async def post_article(article: Article):
-    """Post article"""
-
-    save_article = save_article_var.get()
-    save_article(article)
-
-
-@app.get("/comments", response_model=Comment)
-async def get_comment(id: uuid.UUID):
-    """Get comment"""
-
-    assert id in comments_var.get()
-    return Comment(id=id)
-
-
-@app.get("/articles/{article_id}/revisions/{revision}")
-async def get_revision(article_id: uuid.UUID, revision: int):
-    """Get revision"""
-
-    assert article_id == article_var.get()
-    return ArticleRevision(article=article_id, revision=revision)
-
-
-@app.websocket("/comment")
-async def echo_comments(websocket: fastapi.WebSocket):
-    """Echo comment (a websocket endpoint)"""
-
+async def _websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    comment_id = await websocket.receive_json()
     with href_context(websocket):
-        comment = pydantic.parse_obj_as(Href[Comment], comment_id)
-    await websocket.send_json(comment.url)
+        async for id in websocket.iter_text():
+            hero = Hero(self=id)
+            await websocket.send_text(hero.self.url)
     await websocket.close()
 
 
-author_app = fastapi.FastAPI()
-
-
-@author_app.get("/{id}")
-def get_author(id: uuid.UUID):
-    """Get author"""
-
-    assert id == author_var.get()
-    return Author(id=id)
-
-
-app.mount("/authors", author_app, name="authors")
-
-client = fastapi.testclient.TestClient(app)
-
-
-@given(
-    article_id=st.uuids(),
-    revision=st.integers(),
-    comment_ids=st.lists(st.uuids(), min_size=1),
-    author_id=st.uuids(),
-)
-def test_parse_key_to_href(article_id, revision, comment_ids, author_id):
-    article_var.set(article_id)
-    revision_var.set(revision)
-    comments_var.set(comment_ids)
-    author_var.set(author_id)
-    response = client.get(f"/articles/{article_id}")
-    assert response.status_code == fastapi.status.HTTP_200_OK, response.text
-    article = response.json()
-    comment_href, comment_id = random.choice(
-        list(zip(article["comments"], comment_ids))
-    )
-    comment = client.get(comment_href).json()
-    assert uuid.UUID(comment["id"]) == comment_id
-    current_revision_href = article["current_revision"]
-    current_revision = client.get(current_revision_href).json()
-    assert current_revision == {
-        "article": f"http://testserver/articles/{article_id}",
-        "revision": revision,
-    }
-    author_href = article["author"]
-    author = client.get(author_href).json()
-    assert author == {"id": str(author_id)}
-
-
-@given(
-    article_id=st.uuids(),
-    revision=st.integers(),
-    comment_ids=st.lists(st.uuids(), min_size=1),
-    author_id=st.uuids(),
-)
-def test_parse_url_to_href(article_id, revision, comment_ids, author_id):
-    def assert_article(article: Article):
-        assert article.self.key == article_id
-        assert [comment_href.key for comment_href in article.comments] == comment_ids
-        _article, _revision = article.current_revision.key
-        assert _article.key == article_id
-        assert _revision == revision
-        assert article.author.key == author_id
-
-    save_article_var.set(assert_article)
-    response = client.post(
-        "/articles",
-        content=json.dumps(
-            {
-                "self": str(article_id),
-                "comments": [
-                    f"http://testserver/comments?id={id}" for id in comment_ids
-                ],
-                "current_revision": f"http://testserver/articles/{article_id}/revisions/{revision}",
-                "author": f"http://testserver/authors/{author_id}",
-            }
+app = Starlette(
+    routes=[
+        Route("/quests/{id}", name="get_quest", endpoint=_dummy_endpoint),
+        Route("/heroes/{id}", name="get_hero", endpoint=_dummy_endpoint),
+        Mount(
+            "/heroes/{hero_id}",
+            name="heroes",
+            routes=[
+                Route("/journal/{entry}", name="get_journal", endpoint=_dummy_endpoint),
+                Route("/familiar", name="get_familiar", endpoint=_dummy_endpoint),
+            ],
         ),
-    )
-    assert response.status_code == fastapi.status.HTTP_200_OK, response.text
+        Route("/http", endpoint=_http_endpoint),
+        WebSocketRoute("/ws", endpoint=_websocket_endpoint),
+    ],
+    middleware=[Middleware(HrefMiddleware)],
+)
 
 
 @pytest.fixture(scope="class")
 def appcontext():
     """Provides hyperlink resolution context for Starlette apps"""
-    with href_context(app, base_url="http://testserver"):
+    with href_context(app, base_url="http://example.com"):
         yield
 
 
@@ -213,129 +120,201 @@ def appcontext():
 class TestParsing:
     """Parsing tests"""
 
-    @given(comment_id=st.uuids())
-    def test_app_as_href_context_parse_key(self, comment_id):
-        comment = pydantic.parse_obj_as(Href[Comment], comment_id)
-        assert comment == Href(
-            key=comment_id, url=f"http://testserver/comments?id={comment_id}"
-        )
+    @given(href=st.from_type(Href[Quest]))
+    def test_quest_href(self, href):
+        assert href.url == f"http://example.com/quests/{href.key}"
 
-    @given(comment_id=st.uuids())
-    def test_app_as_href_context_parse_url(self, comment_id):
-        comment_url = f"http://testserver/comments?id={comment_id}"
-        comment = pydantic.parse_obj_as(Href[Comment], comment_url)
-        assert comment == Href(key=comment_id, url=comment_url)
+    @given(quest_id=st.uuids())
+    def test_parse_quest_from_key(self, quest_id):
+        href = pydantic.parse_obj_as(Href[Quest], quest_id)
+        assert href == Href(key=quest_id, url=f"http://example.com/quests/{quest_id}")
 
-    @given(
-        url=st.one_of(
-            st.just("http://testserver/not/a/real/route"),
-            st.just("http://testserver/comments?wrong=query"),
-            st.integers().map(lambda n: f"http://testserver/comments?id={n}"),
-            st.uuids().map(lambda id: f"http://testserver/articles/{id}"),
-        )
-    )
-    def test_parse_invalid_url_fails_comments(self, url):
-        with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[Comment], url)
+    @given(key=st.one_of(st.text(), st.tuples(st.uuids(), st.text())))
+    def test_parse_quest_from_fail(self, key):
+        try:
+            uuid.UUID(key)
+        except Exception:
+            with pytest.raises(pydantic.ValidationError):
+                pydantic.parse_obj_as(Href[Quest], key)
+        else:
+            assume(False)
 
-    @given(
-        key=st.one_of(
-            st.booleans(),
-            st.integers(),
-            st.tuples(st.booleans(), st.integers()),
-        )
-    )
-    def test_parse_invalid_key_fails_comments(self, key):
-        with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[Comment], key)
+    @given(quest_id=st.uuids())
+    def test_parse_quest_from_url(self, quest_id):
+        url = f"http://example.com/quests/{quest_id}"
+        href = pydantic.parse_obj_as(Href[Quest], url)
+        assert href == Href(key=quest_id, url=url)
 
     @given(
         url=st.one_of(
-            st.just("http://testserver/not/a/real/route"),
-            st.integers().map(lambda n: f"http://testserver/authors/{n}"),
-            st.uuids().map(lambda id: f"http://testserver/comments?id={id}"),
+            pst.urls(),
+            st.integers().map(lambda key: f"http://example.com/quests/{key}"),
+            st.uuids().map(lambda key: f"http://example.com/quests?key={key}"),
+            st.uuids().map(lambda key: f"http://example.com/heroes/{key}"),
         )
     )
-    def test_parse_invalid_url_fails_authors(self, url):
+    def test_parse_quest_from_url_fail(self, url):
         with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[Author], url)
+            pydantic.parse_obj_as(Href[Quest], url)
 
-    @given(
-        key=st.one_of(
-            st.booleans(),
-            st.integers(),
-            st.tuples(st.booleans(), st.integers()),
-        )
-    )
-    def test_parse_invalid_key_fails_authors(self, key):
-        with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[Author], key)
+    @given(href=st.from_type(Href[Hero]))
+    def test_hero_href(self, href):
+        assert href.url == f"http://example.com/heroes/{href.key}"
 
-    @given(
-        url=st.one_of(
-            st.just("http://testserver/not/a/real/route"),
-            st.integers().map(lambda n: f"http://testserver/articles/{n}"),
-            st.uuids().map(lambda id: f"http://testserver/comments?id={id}"),
-        )
-    )
-    def test_parse_invalid_url_fails_articles(self, url):
-        with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[Article], url)
+    @given(hero_id=st.uuids())
+    def test_parse_hero_from_key(self, hero_id):
+        href = pydantic.parse_obj_as(Href[Hero], hero_id)
+        assert href == Href(key=hero_id, url=f"http://example.com/heroes/{hero_id}")
 
-    @given(
-        key=st.one_of(
-            st.booleans(),
-            st.integers(),
-            st.tuples(st.booleans(), st.integers()),
-        )
-    )
-    def test_parse_invalid_key_fails_articles(self, key):
-        with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[Article], key)
+    @given(key=st.one_of(st.text(), st.tuples(st.uuids(), st.text())))
+    def test_parse_hero_from_key_fail(self, key):
+        try:
+            uuid.UUID(key)
+        except Exception:
+            with pytest.raises(pydantic.ValidationError):
+                pydantic.parse_obj_as(Href[Hero], key)
+        else:
+            assume(False)
+
+    @given(hero_id=st.uuids())
+    def test_parse_hero_from_url(self, hero_id):
+        url = f"http://example.com/heroes/{hero_id}"
+        href = pydantic.parse_obj_as(Href[Hero], url)
+        assert href == Href(key=hero_id, url=url)
 
     @given(
         url=st.one_of(
-            st.just("http://testserver/not/a/real/route"),
+            pst.urls(),
+            st.integers().map(lambda key: f"http://example.com/heroes/{key}"),
+            st.uuids().map(lambda key: f"http://example.com/heroes?key={key}"),
+            st.uuids().map(lambda key: f"http://example.com/quests/{key}"),
+        )
+    )
+    def test_parse_hero_from_url_fail(self, url):
+        with pytest.raises(pydantic.ValidationError):
+            pydantic.parse_obj_as(Href[Hero], url)
+
+    @given(href=st.from_type(Href[JournalEntry]))
+    def test_journal_href(self, href):
+        assert (
+            href.url
+            == f"http://example.com/heroes/{href.key[0].key}/journal/{href.key[1]}"
+        )
+
+    @given(hero_id=st.uuids(), entry=st.integers())
+    def test_parse_journal_from_key(self, hero_id, entry):
+        hero_url = f"http://example.com/heroes/{hero_id}"
+        href = pydantic.parse_obj_as(Href[JournalEntry], (hero_id, entry))
+        assert href == Href(
+            key=(Href(key=hero_id, url=hero_url), entry),
+            url=f"{hero_url}/journal/{entry}",
+        )
+
+    @given(key=st.one_of(st.uuids(), st.tuples(st.uuids(), st.text())))
+    def test_parse_journal_from_key_fail(self, key):
+        try:
+            int(key[1])
+        except Exception:
+            with pytest.raises(pydantic.ValidationError):
+                pydantic.parse_obj_as(Href[JournalEntry], key)
+        else:
+            assume(False)
+
+    @given(hero_id=st.uuids(), entry=st.integers())
+    def test_parse_journal_from_url(self, hero_id, entry):
+        hero_url = f"http://example.com/heroes/{hero_id}"
+        url = f"{hero_url}/journal/{entry}"
+        href = pydantic.parse_obj_as(Href[JournalEntry], url)
+        assert href == Href(key=(Href(key=hero_id, url=hero_url), entry), url=url)
+
+    @given(
+        url=st.one_of(
+            pst.urls(),
             st.tuples(st.uuids(), st.uuids()).map(
-                lambda key: f"http://testserver/articles/{key[0]}/revisions/{key[1]}"
+                lambda key: f"http://example.com/heroes/{key[0]}/journal/{key[1]}"
             ),
             st.tuples(st.integers(), st.integers()).map(
-                lambda key: f"http://testserver/articles/{key[0]}/revisions/{key[1]}"
+                lambda key: f"http://example.com/heroes/{key[0]}/journal/{key[1]}"
             ),
             st.tuples(st.uuids(), st.integers()).map(
-                lambda key: f"http://testserver/articles/{key[0]}?revision={key[1]}"
+                lambda key: f"http://example.com/heroes/{key[0]}/journal?entry={key[1]}"
+            ),
+            st.tuples(st.uuids(), st.integers()).map(
+                lambda key: f"http://example.com/heroes/{key[0]}/familiar?name={key[1]}"
             ),
         )
     )
-    def test_parse_invalid_url_fails_revisions(self, url):
+    def test_parse_journal_from_url_fail(self, url):
         with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[ArticleRevision], url)
+            pydantic.parse_obj_as(Href[JournalEntry], url)
+
+    @given(href=st.from_type(Href[Familiar]))
+    def test_familiar_href(self, href):
+        assert (
+            href.url
+            == f"http://example.com/heroes/{href.key[0].key}/familiar?name={quote(href.key[1])}"
+        )
+
+    @given(hero_id=st.uuids(), name=st.text())
+    def test_parse_familiar_from_key(self, hero_id, name):
+        hero_url = f"http://example.com/heroes/{hero_id}"
+        href = pydantic.parse_obj_as(Href[Familiar], (hero_id, name))
+        assert href == Href(
+            key=(Href(key=hero_id, url=hero_url), name),
+            url=f"{hero_url}/familiar?name={quote(name)}",
+        )
+
+    @given(key=st.one_of(st.uuids(), st.tuples(st.integers(), st.text())))
+    def test_parse_familiar_from_key_fail(self, key):
+        with pytest.raises(pydantic.ValidationError):
+            pydantic.parse_obj_as(Href[Familiar], key)
+
+    @given(hero_id=st.uuids(), name=st.text())
+    def test_parse_familiar_from_url(self, hero_id, name):
+        hero_url = f"http://example.com/heroes/{hero_id}"
+        url = f"{hero_url}/familiar?name={quote(name)}"
+        href = pydantic.parse_obj_as(Href[Familiar], url)
+        assert href == Href(key=(Href(key=hero_id, url=hero_url), name), url=url)
 
     @given(
-        key=st.one_of(
-            st.booleans(),
-            st.integers(),
-            st.tuples(st.booleans(), st.integers()),
+        url=st.one_of(
+            pst.urls(),
+            st.tuples(st.integers(), st.text()).map(
+                lambda key: f"http://example.com/heroes/{key[0]}/familiar?name={quote(key[1])}"
+            ),
+            st.tuples(st.uuids(), st.text()).map(
+                lambda key: f"http://example.com/heroes/{key[0]}/familiar/{quote(key[1])}"
+            ),
+            st.tuples(st.uuids(), st.integers()).map(
+                lambda key: f"http://example.com/heroes/{key[0]}/journal/{key[1]}"
+            ),
         )
     )
-    def test_parse_invalid_key_fails_revisions(self, key):
+    def test_parse_familiar_from_url_fail(self, url):
         with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[ArticleRevision], key)
+            pydantic.parse_obj_as(Href[Familiar], url)
 
 
-def test_websocket_as_href_context():
-    comment_id = uuid.uuid4()
-    with client.websocket_connect("/comment") as websocket:
-        websocket.send_json(str(comment_id))
-        response = websocket.receive_json()
-    assert response == f"http://testserver/comments?id={comment_id}"
+def test_http_endpoint():
+    id = uuid.uuid4()
+    client = TestClient(app)
+    response = client.get(f"/http?id={id}")
+    assert response.text == f"http://testserver/heroes/{id}"
 
 
-@given(comment_id=st.uuids())
-def test_app_as_href_context_without_base_url_fails(comment_id):
+def test_websocket_endpoint():
+    id = uuid.uuid4()
+    client = TestClient(app)
+    with client.websocket_connect("/ws") as websocket:
+        websocket.send_text(id)
+        response = websocket.receive_text()
+    assert response == f"http://testserver/heroes/{id}"
+
+
+def test_app_as_href_context_without_base_url_fails():
     with pytest.raises(RuntimeError):
         with href_context(app):
-            pydantic.parse_obj_as(Href[Comment], comment_id)
+            pydantic.parse_obj_as(Href[Hero], uuid.uuid4())
 
 
 def test_referrable_model_deprecated() -> None:
