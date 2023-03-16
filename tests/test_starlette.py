@@ -184,7 +184,10 @@ class TestParsing:
     @given(
         url=st.one_of(
             pst.urls(),
-            st.integers().map(lambda key: f"http://example.com/heroes/{key}"),
+            # max value so it doesn't parse as UUID by accident
+            st.integers(max_value=1000).map(
+                lambda key: f"http://example.com/heroes/{key}"
+            ),
             st.uuids().map(lambda key: f"http://example.com/heroes?key={key}"),
             st.uuids().map(lambda key: f"http://example.com/quests/{key}"),
         )
@@ -232,7 +235,8 @@ class TestParsing:
             st.tuples(st.uuids(), st.uuids()).map(
                 lambda key: f"http://example.com/heroes/{key[0]}/journal/{key[1]}"
             ),
-            st.tuples(st.integers(), st.integers()).map(
+            # max value so it doesn't parse as UUID by accident
+            st.tuples(st.integers(max_value=1000), st.integers()).map(
                 lambda key: f"http://example.com/heroes/{key[0]}/journal/{key[1]}"
             ),
             st.tuples(st.uuids(), st.integers()).map(
@@ -278,7 +282,8 @@ class TestParsing:
     @given(
         url=st.one_of(
             pst.urls(),
-            st.tuples(st.integers(), st.text()).map(
+            # max value so it doesn't parse as UUID by accident
+            st.tuples(st.integers(max_value=1000), st.text()).map(
                 lambda key: f"http://example.com/heroes/{key[0]}/familiar?name={quote(key[1])}"
             ),
             st.tuples(st.uuids(), st.text()).map(
