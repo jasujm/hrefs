@@ -51,7 +51,7 @@ class HrefResolver(typing_extensions.Protocol):
 
     .. seealso::
 
-       :func:`with_href_resolver()` that is used to inject the active resolver context
+       :func:`resolve_hrefs()` that is used to inject the active resolver context
     """
 
     @abc.abstractmethod
