@@ -118,13 +118,13 @@ def test_hypothesis_plugin(href):
     assert href.url == Pet.key_to_url(href.key)
 
 
-@pytest.mark.filterwarnings("ignore::hypothesis.errors.NonInteractiveExampleWarning")
-def test_hypothesis_plugin_plain_href_fails():
+@given(st.data())
+def test_hypothesis_plugin_plain_href_fails(data):
     with pytest.raises(ValueError):
-        st.from_type(Href).example()
+        data.draw(st.from_type(Href))
 
 
-@pytest.mark.filterwarnings("ignore::hypothesis.errors.NonInteractiveExampleWarning")
-def test_hypothesis_plugin_href_to_non_referrable_type_fails():
+@given(st.data())
+def test_hypothesis_plugin_href_to_non_referrable_type_fails(data):
     with pytest.raises(ValueError):
-        st.from_type(Href[int]).example()
+        data.draw(st.from_type(Href[int]))
