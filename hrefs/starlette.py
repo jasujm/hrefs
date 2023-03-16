@@ -7,10 +7,10 @@ import warnings
 
 import pydantic
 from starlette.datastructures import URL, QueryParams
-from starlette.requests import HTTPConnection, Request
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import HTTPConnection
 from starlette.applications import Starlette
 from starlette.routing import Route, BaseRoute, Mount, Match
+from starlette.types import ASGIApp, Scope, Receive, Send
 
 from .model import BaseReferrableModel, HrefResolver, resolve_hrefs, _URL_MODEL
 
@@ -167,54 +167,38 @@ def href_context(
     """Context manager that sets hyperlink context
 
     Makes ``request_or_app`` responsible for converting between keys and URLs in
-    hyperlinks to :class:`BaseReferrableModel`. The context can be either of the
-    following:
+    hyperlinks to :class:`BaseReferrableModel`.  The context can be either of
+    the following:
 
-    * A Starlette ``HTTPConnection`` -- that is HTTP request or websocket
+    * A :class:`starlette.requests.HTTPConnection` instance -- that is a HTTP
+      request or websocket
 
-    * A Starlette application. Note that ``base_url`` needs to be provided when
-      using application to convert the URL path to absolute URL.
+    * A :class:`starlette.applications.Starlette` instance. Note that
+      ``base_url`` needs to be provided when using application to convert the URL
+      path to absolute URL.
 
     :func:`href_context()` is used as a context manager that automatically
-    clears the context when exiting. The contexts stack so you can even use
+    clears the context when exiting.  The contexts stack so you can even use
     nested contexts if you're feeling adventurous.
-
-    This is an example how to make a websocket handler work with hyperlinks in
-    FastAPI:
 
     .. code-block:: python
 
-       from fastapi import FastAPI, WebSocket
-       from hrefs import BaseReferrableModel
-       from hrefs.starlette import href_context
-
-       app = FastAPI(...)
-
-       class Book(BaseReferrableModel):
-           id: int
-
-       @app.websocket("/")
-       async def my_awesome_websocket_endpoint(websocket: WebSocket):
-           await websocket.accept()
-           with href_context(websocket):
-               # here you can create and parse Href[Book] instances
-               # the base URL will be inferred from the connection
-           await websocket.close()
+        with href_context(request):
+            '''Parse and generate hyperlinks, with base URL from the request'''
 
     If you want to use an application as hyperlink context, you'll need to
     provide base URL manually:
 
     .. code-block:: python
 
-       with href_context(app, base_url="http://example.com"):
-           # here you can create and parse Href[Book] instances
-           # URLs will be like: http://example.com/book/api/books/1
+        with href_context(app, base_url="http://example.com"):
+            '''Parse and generate hyperlinks, with base URL from the argument'''
 
     .. note::
 
-       For normal use where hyperlinks are parsed or generated inside request
-       handlers of a Starlette/FastAPI app, it is recommended to use
-       :class:`HrefMiddleware` to automatically set the context.
+        For normal use where hyperlinks are parsed or generated inside request
+        handlers of a Starlette app, it is recommended to use
+        :class:`HrefMiddleware` to automatically set the context.
 
     Arguments:
         request_or_app: The request or app to be used as hyperlink context
@@ -223,16 +207,19 @@ def href_context(
     return resolve_hrefs(_StarletteHrefResolver(request_or_app, base_url))
 
 
-class HrefMiddleware(BaseHTTPMiddleware):
+class HrefMiddleware:
     """Middleware for resolving hyperlinks
 
-    This middleware needs to be added to the middleware stack of a Starlette app
-    intending to use this library.
+    Provide the necessary context for resolving hyperlinks for a Starlette app.
     """
 
-    async def dispatch(self, request: Request, call_next):
-        with href_context(request):
-            return await call_next(request)
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        connection = HTTPConnection(scope)
+        with href_context(connection):
+            await self.app(scope, receive, send)
 
 
 class ReferrableModel(BaseReferrableModel):

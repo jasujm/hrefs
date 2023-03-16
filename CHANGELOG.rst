@@ -4,6 +4,7 @@ Unreleased
 Changed
  * Clean up unit tests
  * Improve documentation about testing
+ * Make ``starlette.HrefMiddleware`` support websocket routes
 
 Version 0.8
 -----------

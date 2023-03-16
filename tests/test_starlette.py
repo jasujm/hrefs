@@ -83,10 +83,9 @@ def _http_endpoint(request: Request):
 
 async def _websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    with href_context(websocket):
-        async for id in websocket.iter_text():
-            hero = Hero(self=id)
-            await websocket.send_text(hero.self.url)
+    async for id in websocket.iter_text():
+        hero = Hero(self=id)
+        await websocket.send_text(hero.self.url)
     await websocket.close()
 
 
