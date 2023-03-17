@@ -10,6 +10,20 @@ from hrefs import BaseReferrableModel, PrimaryKey, Href
 pytestmark = pytest.mark.usefixtures("href_resolver")
 
 
+def test_base_referrable_model_has_empty_key():
+    href = pydantic.parse_obj_as(Href[BaseReferrableModel], BaseReferrableModel())
+    assert href.key == ()
+    assert href.url == BaseReferrableModel.key_to_url(())
+
+
+@given(st.integers())
+def test_simple_model(id) -> None:
+    class _SimpleModel(BaseReferrableModel):
+        id: int
+
+    assert _SimpleModel(id=id).get_key() == id
+
+
 @given(st.integers())
 def test_primary_key_annotation(my_id) -> None:
     class _MyModel(BaseReferrableModel):

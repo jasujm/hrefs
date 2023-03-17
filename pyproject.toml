@@ -42,7 +42,7 @@ test = [
   "fastapi>=0.92",
   "black>=23.1",
   "pylint>=2.16",
-  "mypy>=1.0",
+  "mypy>=1.1",
   "httpx>=0.23",
   "pytest-skip-slow",
 ]

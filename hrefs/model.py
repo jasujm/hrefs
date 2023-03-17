@@ -193,18 +193,18 @@ class _ReferrableModelMeta(pydantic.main.ModelMetaclass):
         key_names, key_infos = cls._create_key_names_and_types(name, annotations)
         assert len(key_names) == len(key_infos)
 
-        if key_infos:
-            if len(key_infos) > 1:
+        if key_infos or not cls._has_referrable_model_base(bases):
+            if len(key_infos) == 1:
                 (
                     key_model,
                     get_key,
-                ) = cls._create_key_converters_multiple_types(key_names, key_infos)
+                ) = cls._create_key_converters_single_type(key_infos[0])
 
             else:
                 (
                     key_model,
                     get_key,
-                ) = cls._create_key_converters_single_type(key_infos[0])
+                ) = cls._create_key_converters_multiple_types(key_names, key_infos)
 
             namespace["_key_names"] = tuple(key_names)
             namespace["_key_model"] = key_model
@@ -215,8 +215,11 @@ class _ReferrableModelMeta(pydantic.main.ModelMetaclass):
 
     def __init__(cls, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if hasattr(cls, "_key_model"):
-            cls._calculate_key_map()
+        cls._calculate_key_map()
+
+    @classmethod
+    def _has_referrable_model_base(cls, bases):
+        return any(isinstance(base, cls) for base in bases)
 
     @staticmethod
     def _create_key_names_and_types(
@@ -468,6 +471,9 @@ class BaseReferrableModel(
 
     @classmethod
     def _calculate_key_map(cls) -> None:
+        if not cls._key_names:
+            return
+
         key_type = cls._key_model.__fields__["__root__"].outer_type_
         key_types: typing.Dict[str, typing.Type]
         if cls.has_simple_key():

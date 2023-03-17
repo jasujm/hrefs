@@ -14,14 +14,14 @@ import uuid
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware import Middleware
-from pydantic import BaseModel, parse_obj_as
+from pydantic import parse_obj_as
 from typing_extensions import Annotated
 
 from hrefs import Href, PrimaryKey, BaseReferrableModel
 from hrefs.starlette import HrefMiddleware
 
 
-class _BookBase(BaseModel):
+class _BookBase(BaseReferrableModel):
     title: str
 
 
@@ -29,7 +29,7 @@ class BookCreate(_BookBase):
     """Book creation payload"""
 
 
-class Book(BaseReferrableModel, _BookBase):
+class Book(_BookBase):
     """Book in a library
 
     A book has a `title` and identity, represented by a hyperlink in the `self`
@@ -52,7 +52,7 @@ class Book(BaseReferrableModel, _BookBase):
 Book.update_forward_refs()
 
 
-class _LibraryBase(BaseModel):
+class _LibraryBase(BaseReferrableModel):
     books: List[Href[Book]]
 
 
@@ -60,7 +60,7 @@ class LibraryCreate(_LibraryBase):
     """Library creation payload"""
 
 
-class Library(BaseReferrableModel, _LibraryBase):
+class Library(_LibraryBase):
     """A library containing some books
 
     A library has a list of `books`, represented by hyperlinks. Its own identity
