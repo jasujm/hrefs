@@ -1,8 +1,11 @@
-Unreleased
-----------
+Version 0.9
+-----------
+
+Date
+  2023-03-17
 
 Changed
- * Clean up unit tests
+ * Clean up and improve unit tests
  * Improve documentation about testing
  * Make ``starlette.HrefMiddleware`` support websocket routes
 
