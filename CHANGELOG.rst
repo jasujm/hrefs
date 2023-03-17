@@ -6,6 +6,9 @@ Changed
  * Improve documentation about testing
  * Make ``starlette.HrefMiddleware`` support websocket routes
 
+Fixed
+ * Support ``starlette`` version ``0.26.0`` and above
+
 Version 0.8
 -----------
 

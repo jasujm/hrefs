@@ -120,8 +120,12 @@ class _StarletteHrefResolver(HrefResolver):
                 url = self.request_or_app.url_path_for(
                     details_view, **path_params
                 ).make_absolute_url(self._get_base_url())
+            # In starlette<0.26 the url conversion methods return string
+            # Convert it in case an older version is in use
+            if isinstance(url, str):
+                url = URL(url)
             return _URL_MODEL.parse_obj(  # type: ignore
-                str(URL(url).replace_query_params(**query_params))
+                str(url.replace_query_params(**query_params))
             ).__root__
         raise ValueError(f"Could not resolve {key} into URL to {model_cls.__name__}")
 
