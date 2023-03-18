@@ -31,10 +31,12 @@ def _calculate_route_chain(
         if isinstance(route, Route) and route.name == name:
             return [route]
         if isinstance(route, Mount):
-            if route.name or name.startswith(f"{route.name}:"):
+            if not route.name or name.startswith(f"{route.name}:"):
                 if route.name:
-                    name = name[(len(route.name) + 1) :]
-                route_chain = _calculate_route_chain(route.routes, name)
+                    remaining_name = name[(len(route.name) + 1) :]
+                else:
+                    remaining_name = name
+                route_chain = _calculate_route_chain(route.routes, remaining_name)
                 if route_chain is not None:
                     route_chain.insert(0, route)
                     return route_chain

@@ -3,6 +3,10 @@ Unlreleased
 
 Fixed:
  * Fixed incorrect documentation
+ * Fixed a bug in Starlette integration not correctly finding details view if
+   there are mounts
+ * Fixed a bug in Starlette integration not correctly handling mounts without
+   name
 
 Version 0.9
 -----------
