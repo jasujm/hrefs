@@ -1,5 +1,6 @@
 """The library exception hierarchy"""
 
+
 class ReferrableModelError(Exception):
     """An exception indicating error in a referrable model
 
