@@ -18,7 +18,8 @@ and URLs:
 
 .. code-block:: python
 
-   from hrefs import BaseReferrableModel
+   from hrefs import Href, BaseReferrableModel
+   from pydantic import BaseModel
 
    class Book(BaseReferrableModel):
        id: int
@@ -27,7 +28,7 @@ and URLs:
            details_view = "get_book"
 
    class Library(BaseModel):
-       books: List[Href[Book]]
+       books: list[Href[Book]]
 
    @app.get("/books/{id}")
    def get_book(id: int) -> Book:
