@@ -7,7 +7,7 @@ import pydantic
 import pytest
 from typing_extensions import Annotated
 
-from hrefs import Href, BaseReferrableModel, PrimaryKey
+from hrefs import Href, BaseReferrableModel, PrimaryKey, ReferrableModelError
 
 pytestmark = pytest.mark.usefixtures("href_resolver")
 
@@ -182,7 +182,7 @@ def test_parse_indirect_href_key_from_referred_url(url):
 
 
 def test_deep_indirection_is_not_supported() -> None:
-    with pytest.raises(TypeError, match="not supported"):
+    with pytest.raises(ReferrableModelError):
 
         class _SomeModelWithDeepIndirection(BaseReferrableModel):
             bookmark: Annotated[Href[Bookmark], PrimaryKey]

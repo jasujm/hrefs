@@ -64,3 +64,8 @@ The implementation of :mod:`hrefs.starlette` can be used as a reference.
    :members:
 
 .. autofunction:: hrefs.model.resolve_hrefs
+
+Exceptions
+----------
+
+.. autoexception:: hrefs.ReferrableModelError

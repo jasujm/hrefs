@@ -15,6 +15,7 @@ import pydantic.typing
 import typing_extensions
 
 from .href import Href, Referrable
+from .errors import ReferrableModelError
 
 _DEFAULT_KEY = "id"
 
@@ -67,6 +68,10 @@ class HrefResolver(typing_extensions.Protocol):
 
         Returns:
             The URL parsed from ``key``
+
+        Raises:
+            :exc:`hrefs.ReferrableModelError`: if the model is incorrectly configured
+            :exc:`Exception`: validation errors when converting ``key`` are passed as is
         """
         raise NotImplementedError()  # pragma: no cover
 
@@ -83,6 +88,10 @@ class HrefResolver(typing_extensions.Protocol):
 
         Returns:
             The key parsed from ``url``
+
+        Raises:
+            :exc:`hrefs.ReferrableModelError`: if the model is incorrectly configured
+            :exc:`Exception`: validation errors when converting ``url`` are passed as is
         """
         raise NotImplementedError()  # pragma: no cover
 
@@ -237,7 +246,7 @@ class _ReferrableModelMeta(pydantic.main.ModelMetaclass):
                 ]
                 n_key_annotations = len(key_annotations)
                 if n_key_annotations > 1:
-                    raise TypeError(
+                    raise ReferrableModelError(
                         f"{name}.{field_name}: Expected zero or one PrimaryKey annotations,"
                         f" got {n_key_annotations}"
                     )
@@ -335,6 +344,10 @@ class BaseReferrableModel(
     While the model class knows how to extract key types from annotations, it
     doesn't know how to convert between keys and URLs.  For that, it needs to
     use a :class:`HrefResolver` provided by the web framework integration.
+
+    Subclassing or initializing instances of a subclass raises
+    :exc:`hrefs.ReferrableModelError` in case the library detects the model is
+    incorrectly configured.
     """
 
     _key_model: typing.ClassVar[typing.Type[pydantic.BaseModel]]
@@ -355,26 +368,44 @@ class BaseReferrableModel(
 
     @classmethod
     def key_to_url(cls, key) -> pydantic.AnyHttpUrl:
+        """Convert ``key`` to URL
+
+        Uses the web framework specific resolution logic to convert the model
+        key to URL (a :class:`pydantic.AnyHttpUrl` instance).
+
+        Raises:
+            :exc:`hrefs.ReferrableModelError`: if the model is incorrectly configured
+            :exc:`Exception`: validation errors when converting ``key`` are passed as is
+        """
         resolver = _href_resolver_var.get()
         return resolver.key_to_url(key, model_cls=cls)
 
     @classmethod
     def url_to_key(cls, url: pydantic.AnyHttpUrl) -> typing.Any:
+        """Convert ``url`` to model key
+
+        Uses the web framework specific resolution logic to convert an URL
+        to the model key based on field annotations.
+
+        Raises:
+            :exc:`hrefs.ReferrableModelError`: if the model is incorrectly configured
+            :exc:`Exception`: validation errors when converting ``url`` are passed as is
+        """
         resolver = _href_resolver_var.get()
         return resolver.url_to_key(url, model_cls=cls)
 
     @classmethod
     def parse_as_key(cls, value: typing.Any) -> typing.Optional[typing.Any]:
-        """Parse ``value`` as the key type
+        """Parse ``value`` as a model key
 
-        The type of the model key based on the field annotations. Either a
+        The type of the model key is based on the field annotations.  Either a
         single type, or (in the case of a composite key), a tuple of the parts.
         """
         return cls._try_parse_as(cls._key_model, value)
 
     @classmethod
     def parse_as_url(cls, value: typing.Any) -> typing.Optional[pydantic.AnyHttpUrl]:
-        """Parse ``value`` as ``pydantic.AnyHttpUrl``"""
+        """Parse ``value`` as an URL (a :class:`pydantic.AnyHttpUrl` instance)"""
         return cls._try_parse_as(_URL_MODEL, value)
 
     @classmethod
@@ -428,7 +459,7 @@ class BaseReferrableModel(
             Model key parsed from ``params``
 
         Raises:
-           ValueError: if ``params`` does not contain sufficient elements
+           :exc:`ValueError`: if ``params`` does not contain sufficient elements
              to construct the key
         """
         subkeys = []
@@ -496,8 +527,8 @@ class BaseReferrableModel(
                     # levels deep), we don't do that. It would be possible if
                     # calculating key map was properly recursive, though.
                     if not all(isinstance(name, str) for name in target_type_key_names):
-                        raise TypeError(
-                            "Href to models with complex key are not supported as model key. "
+                        raise ReferrableModelError(
+                            f"Model {cls.__name__} href key {key_name} has too many levels of indirection. "
                             f"{target_type!r} has key map {target_type_key_map!r}"
                         )
                     target_key_name_list = [

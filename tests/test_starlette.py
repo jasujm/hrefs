@@ -15,7 +15,7 @@ from starlette.testclient import TestClient
 from starlette.websockets import WebSocket
 from typing_extensions import Annotated
 
-from hrefs import BaseReferrableModel, Href, PrimaryKey
+from hrefs import BaseReferrableModel, Href, PrimaryKey, ReferrableModelError
 from hrefs.starlette import HrefMiddleware, href_context
 
 
@@ -381,7 +381,7 @@ class TestParsing:  # pylint: disable=too-many-public-methods
         class _FaultyModel(BaseReferrableModel):
             id: uuid.UUID
 
-        with pytest.raises(AttributeError):
+        with pytest.raises(ReferrableModelError):
             pydantic.parse_obj_as(Href[_FaultyModel], uuid.uuid4())
 
     def test_model_with_nonexistent_details_view_fails(self) -> None:
@@ -391,7 +391,7 @@ class TestParsing:  # pylint: disable=too-many-public-methods
             class Config:
                 details_view = "does_not_exist"
 
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ReferrableModelError):
             pydantic.parse_obj_as(Href[_FaultyModel], uuid.uuid4())
 
     def test_model_with_insufficient_key_for_details_view_fails(self) -> None:
@@ -401,7 +401,7 @@ class TestParsing:  # pylint: disable=too-many-public-methods
             class Config:
                 details_view = "complex_route"
 
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ReferrableModelError):
             pydantic.parse_obj_as(Href[_FaultyModel], uuid.uuid4())
 
 

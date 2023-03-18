@@ -1,13 +1,13 @@
 Unlreleased
 -----------
 
-Changed:
+Changed
  * Some configuration errors in the Starlette integration (missing
    ``details_view`` route, model key not compatible with the route parameters
-   etc.) now cause ``RuntimeError`` to be thrown instead of
+   etc.) now throw a custom ``hrefs.ReferrableModelError`` instead of
    ``pydantic.ValidationError``
 
-Fixed:
+Fixed
  * Fixed incorrect documentation
  * Fixed a bug in Starlette integration not correctly finding details view if
    there are mounts
@@ -34,16 +34,16 @@ Version 0.8
 Date
   2023-03-05
 
-Added:
+Added
  * The ``hrefs.model.HrefResolver`` based hyperlink resolution mechanism to
    replace tight coupling between model classes and the web framework
  * Starlette integration now supports routes mounted via sub-application
 
-Fixed:
+Fixed
  * Starlette integration silently ignoring some errors when converting URL to
    model key
 
-Deprecated:
+Deprecated
  * ``hrefs.starlette.ReferrableModel`` since referrable models should now
    inherit ``hrefs.BaseReferrableModel`` directly
 

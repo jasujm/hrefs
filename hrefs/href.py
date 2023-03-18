@@ -97,13 +97,24 @@ class Referrable(typing.Generic[KeyType, UrlType], metaclass=abc.ABCMeta):
     @classmethod
     @abc.abstractmethod
     def key_to_url(cls, key: KeyType) -> UrlType:
-        """Convert key to url"""
+        """Convert ``key`` to URL
+
+        Raises:
+            :exc:`Exception`: the implementation should pass validation related errors
+                (:exc:`TypeError`, :exc:`ValueError` etc.) as is.
+        """
         raise NotImplementedError()  # pragma: no cover
 
     @classmethod
     @abc.abstractmethod
     def url_to_key(cls, url: UrlType) -> KeyType:
-        """Convert url to key"""
+        """Convert ``url`` to key
+
+
+        Raises:
+            :exc:`Exception`: the implementation should pass validation related errors
+                (:exc:`TypeError`, :exc:`ValueError` etc.) as is.
+        """
         raise NotImplementedError()  # pragma: no cover
 
     @classmethod
@@ -211,9 +222,8 @@ class Href(typing.Generic[ReferrableType]):
           argument.
 
         Raises:
-          TypeError: If the :class:`Href` model isn't properly annotated, or if
+          :exc:`TypeError`: If the :class:`Href` model isn't properly annotated, or if
             ``value`` doesn't conform to any of the recognized types
-          Exception: In addition passes any exceptions happening during conversions
         """
         if not field.sub_fields:
             raise TypeError("Expected sub field")

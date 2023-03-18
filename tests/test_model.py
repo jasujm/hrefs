@@ -5,7 +5,7 @@ import pydantic
 import pytest
 from typing_extensions import Annotated
 
-from hrefs import BaseReferrableModel, PrimaryKey, Href
+from hrefs import BaseReferrableModel, PrimaryKey, Href, ReferrableModelError
 
 pytestmark = pytest.mark.usefixtures("href_resolver")
 
@@ -41,7 +41,7 @@ def test_primary_key_annotation(my_id) -> None:
 
 
 def test_multiple_primary_key_annotations_fails() -> None:
-    with pytest.raises(TypeError):
+    with pytest.raises(ReferrableModelError):
 
         class _MyModel(BaseReferrableModel):
             my_id: Annotated[int, PrimaryKey, PrimaryKey]

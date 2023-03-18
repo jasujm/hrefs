@@ -13,6 +13,7 @@ from starlette.routing import Route, BaseRoute, Mount, Match
 from starlette.types import ASGIApp, Scope, Receive, Send
 
 from .model import BaseReferrableModel, HrefResolver, resolve_hrefs, _URL_MODEL
+from .errors import ReferrableModelError
 
 RequestOrApp = typing.Union[HTTPConnection, Starlette]
 BaseUrl = typing.Union[str, URL]
@@ -21,7 +22,12 @@ RouteChain = typing.List[typing.Union[Route, Mount]]
 
 
 def _get_details_view(model_cls: ModelType) -> str:
-    return getattr(model_cls.__config__, "details_view")
+    try:
+        return getattr(model_cls.__config__, "details_view")
+    except AttributeError as ex:
+        raise ReferrableModelError(
+            f"Referrable model {model_cls.__name__} missing details_view"
+        ) from ex
 
 
 def _calculate_route_chain(
@@ -55,7 +61,7 @@ def _get_route_chain(app: Starlette, model_cls: ModelType) -> RouteChain:
     details_view = _get_details_view(model_cls)
     route_chain = _calculate_route_chain(app.routes, details_view)
     if not route_chain:
-        raise RuntimeError(
+        raise ReferrableModelError(
             f"Could not find route {details_view} for model {model_cls.__name__}"
         )
     return route_chain
@@ -102,7 +108,7 @@ class _StarletteHrefResolver(HrefResolver):
         }
         if len(path_params) != len(path_param_keys):
             missing_params = path_param_keys - set(path_params.keys())
-            raise RuntimeError(
+            raise ReferrableModelError(
                 f"Could not resolve {key} into URL. The following parameters are expected "
                 f"but missing from the model key: {', '.join(missing_params)}"
             )
@@ -156,7 +162,7 @@ class _StarletteHrefResolver(HrefResolver):
                     **query_params,
                 }
                 return model_cls.params_to_key(path_and_query_params)
-        raise ValueError(f"Could not resolve {url} into key of {model_cls.__name__}")
+        raise ValueError(f"Invalid URL {url} for {model_cls.__name__}")
 
 
 def href_context(
