@@ -1,6 +1,12 @@
 Unlreleased
 -----------
 
+Changed:
+ * Some configuration errors in the Starlette integration (missing
+   ``details_view`` route, model key not compatible with the route parameters
+   etc.) now cause ``RuntimeError`` to be thrown instead of
+   ``pydantic.ValidationError``
+
 Fixed:
  * Fixed incorrect documentation
  * Fixed a bug in Starlette integration not correctly finding details view if
