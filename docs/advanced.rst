@@ -227,11 +227,18 @@ hyperlink. A recipe to achieve that is:
    def get_book(id: int) -> Book:
        ...
 
-Note that ``id`` will become the primary key by the virtue of being called
-``id``. In the example above, ``self`` is just a regular field that happens to
-be a hyperlink to the ``Book`` model itself. The ``Book.populate_self()`` runs
-on the whole model before any other validation takes place, and takes care of
-populating the ``self`` field from ``id``.
+.. note::
+
+   You may need to add ``allow_reuse=True`` as an argument to
+   ``@root_validator`` to make the above code work. There is an `open issue
+   <https://github.com/jasujm/hrefs/issues/8>`_ to investigate why and if it's
+   really needed.
+
+In the above example, ``id`` will become the primary key by the virtue of being
+called ``id``. In the example above, ``self`` is just a regular field that
+happens to be a hyperlink to the ``Book`` model itself. The
+``Book.populate_self()`` runs on the whole model before any other validation
+takes place, and takes care of populating the ``self`` field from ``id``.
 
 .. doctest:: id_and_self
 
