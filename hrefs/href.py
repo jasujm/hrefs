@@ -13,7 +13,7 @@ KeyType = typing.TypeVar("KeyType")  # pylint: disable=invalid-name
 UrlType = typing.TypeVar("UrlType")  # pylint: disable=invalid-name
 
 
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     import pydantic.fields
 
 
@@ -64,7 +64,7 @@ class Referrable(typing.Generic[KeyType, UrlType], metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def get_key(self) -> KeyType:
         """Return the key of the model"""
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     @classmethod
     def parse_as_key(cls, value: typing.Any) -> typing.Optional[KeyType]:
@@ -98,13 +98,13 @@ class Referrable(typing.Generic[KeyType, UrlType], metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def key_to_url(cls, key: KeyType) -> UrlType:
         """Convert key to url"""
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     @classmethod
     @abc.abstractmethod
     def url_to_key(cls, url: UrlType) -> KeyType:
         """Convert url to key"""
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     @classmethod
     def __modify_href_schema__(
@@ -251,7 +251,7 @@ class Href(typing.Generic[ReferrableType]):
 
 try:
     from pydantic.json import ENCODERS_BY_TYPE
-except ImportError:
+except ImportError:  # pragma: no cover
     warnings.warn(
         "Failed to add Href encoder. This may affect serializing Href instances to json.",
         ImportWarning,

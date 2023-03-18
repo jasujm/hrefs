@@ -7,7 +7,7 @@ import pytest
 
 from hrefs.model import HrefResolver, resolve_hrefs
 
-_URL_RE = re.compile(r"\Ahttp://example\.com/[a-z]+/(\d+(/\d+)*)\Z")
+_URL_RE = re.compile(r"\Ahttp://example\.com/[a-z_]+/(-?\d+(/-?\d+)*)\Z")
 
 
 class _MyHrefResolver(HrefResolver):

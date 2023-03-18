@@ -15,7 +15,7 @@ from hrefs import Href, Referrable
 def _pydantic_does_not_support_field_in_modify_schema():
     try:
         return version.parse(pydantic.__version__) < version.Version("1.9")
-    except AttributeError:
+    except AttributeError:  # pragma: no cover
         return True
 
 

@@ -1,11 +1,9 @@
 """Tests for Starlette/FastAPI integration"""
 
-# pylint: disable=broad-exception-caught
-
 import uuid
 from urllib.parse import quote_plus as quote
 
-from hypothesis import given, strategies as st, assume, provisional as pst
+from hypothesis import given, strategies as st, provisional as pst
 import pydantic
 import pytest
 from starlette.applications import Starlette
@@ -31,6 +29,17 @@ class Quest(BaseReferrableModel):
 
     class Config:
         details_view = "get_quest"
+
+
+class Reward(BaseReferrableModel):
+    """Quest reward
+
+    A model whose key is a hyperlink to another model"""
+
+    quest: Annotated[Href[Quest], PrimaryKey]
+
+    class Config:
+        details_view = "get_reward"
 
 
 class Hero(BaseReferrableModel):
@@ -72,8 +81,8 @@ class Familiar(BaseReferrableModel):
         details_view = "heroes:get_familiar"
 
 
-def _dummy_endpoint(request):
-    del request
+def _dummy_endpoint(_request):  # pragma: no cover
+    pass
 
 
 def _http_endpoint(request: Request):
@@ -91,18 +100,30 @@ async def _websocket_endpoint(websocket: WebSocket):
 
 app = Starlette(
     routes=[
+        Route("/quests", name="list_quests", endpoint=_dummy_endpoint),
         Route("/quests/{id}", name="get_quest", endpoint=_dummy_endpoint),
+        Mount(
+            "/quests/{quest_id}",
+            routes=[
+                Route("/reward", name="get_reward", endpoint=_dummy_endpoint),
+            ],
+        ),
+        Route("/heroes", name="list_heroes", endpoint=_dummy_endpoint),
         Route("/heroes/{id}", name="get_hero", endpoint=_dummy_endpoint),
         Mount(
             "/heroes/{hero_id}",
             name="heroes",
             routes=[
+                Route("/journal", name="list_journal", endpoint=_dummy_endpoint),
                 Route("/journal/{entry}", name="get_journal", endpoint=_dummy_endpoint),
                 Route("/familiar", name="get_familiar", endpoint=_dummy_endpoint),
             ],
         ),
         Route("/http", endpoint=_http_endpoint),
         WebSocketRoute("/ws", endpoint=_websocket_endpoint),
+        Route(
+            "/complex/{id}/route/{id2}", name="complex_route", endpoint=_http_endpoint
+        ),
     ],
     middleware=[Middleware(HrefMiddleware)],
 )
@@ -115,8 +136,39 @@ def appcontext():
         yield
 
 
+def _cannot_be_converted_to(excluded_type):
+    def _check(value):
+        if isinstance(value, excluded_type):
+            return False
+        for try_convert in (
+            excluded_type,
+            (lambda v: excluded_type(str(v))),
+            (lambda v: pydantic.parse_obj_as(excluded_type, v)),
+            (lambda v: pydantic.parse_obj_as(excluded_type, str(v))),
+        ):
+            try:
+                try_convert(value)
+            except Exception:  # pylint: disable=broad-exception-caught
+                continue
+            return False
+        return True
+
+    return _check
+
+
+def _everything_except(excluded_types):
+    # Adapted from the example in:
+    # https://hypothesis.readthedocs.io/en/latest/data.html#hypothesis.strategies.from_type
+    # Also excludes values that can be accidentally converted to excluded_type
+    return (
+        st.from_type(type)
+        .flatmap(st.from_type)
+        .filter(_cannot_be_converted_to(excluded_types))
+    )
+
+
 @pytest.mark.usefixtures("appcontext")
-class TestParsing:
+class TestParsing:  # pylint: disable=too-many-public-methods
     """Parsing tests"""
 
     @given(href=st.from_type(Href[Quest]))
@@ -128,15 +180,10 @@ class TestParsing:
         href = pydantic.parse_obj_as(Href[Quest], quest_id)
         assert href == Href(key=quest_id, url=f"http://example.com/quests/{quest_id}")
 
-    @given(key=st.one_of(st.text(), st.tuples(st.uuids(), st.text())))
-    def test_parse_quest_from_fail(self, key):
-        try:
-            uuid.UUID(key)
-        except Exception:
-            with pytest.raises(pydantic.ValidationError):
-                pydantic.parse_obj_as(Href[Quest], key)
-        else:
-            assume(False)
+    @given(key=_everything_except(uuid.UUID))
+    def test_parse_quest_from_key_fail(self, key):
+        with pytest.raises(pydantic.ValidationError):
+            pydantic.parse_obj_as(Href[Quest], key)
 
     @given(quest_id=st.uuids())
     def test_parse_quest_from_url(self, quest_id):
@@ -147,7 +194,9 @@ class TestParsing:
     @given(
         url=st.one_of(
             pst.urls(),
-            st.integers().map(lambda key: f"http://example.com/quests/{key}"),
+            _everything_except(uuid.UUID).map(
+                lambda key: f"http://example.com/quests/{key}"
+            ),
             st.uuids().map(lambda key: f"http://example.com/quests?key={key}"),
             st.uuids().map(lambda key: f"http://example.com/heroes/{key}"),
         )
@@ -155,6 +204,43 @@ class TestParsing:
     def test_parse_quest_from_url_fail(self, url):
         with pytest.raises(pydantic.ValidationError):
             pydantic.parse_obj_as(Href[Quest], url)
+
+    @given(quest_id=st.uuids())
+    def test_parse_reward_from_key(self, quest_id):
+        href = pydantic.parse_obj_as(Href[Reward], quest_id)
+        assert href == Href(
+            key=Href(key=quest_id, url=f"http://example.com/quests/{quest_id}"),
+            url=f"http://example.com/quests/{quest_id}/reward",
+        )
+
+    @given(key=_everything_except(uuid.UUID))
+    def test_parse_reward_from_key_fail(self, key):
+        with pytest.raises(pydantic.ValidationError):
+            pydantic.parse_obj_as(Href[Reward], key)
+
+    @given(quest_id=st.uuids())
+    def test_parse_reward_from_url(self, quest_id):
+        quest_url = f"http://example.com/quests/{quest_id}"
+        url = f"{quest_url}/reward"
+        href = pydantic.parse_obj_as(Href[Reward], url)
+        assert href == Href(
+            key=Href(key=quest_id, url=quest_url),
+            url=url,
+        )
+
+    @given(
+        url=st.one_of(
+            pst.urls(),
+            _everything_except(uuid.UUID).map(
+                lambda key: f"http://example.com/quests/{key}/reward"
+            ),
+            st.uuids().map(lambda key: f"http://example.com/quests/reward?key={key}"),
+            st.uuids().map(lambda key: f"http://example.com/heroes/{key}"),
+        )
+    )
+    def test_parse_reward_from_url_fail(self, url):
+        with pytest.raises(pydantic.ValidationError):
+            pydantic.parse_obj_as(Href[Reward], url)
 
     @given(href=st.from_type(Href[Hero]))
     def test_hero_href(self, href):
@@ -165,15 +251,10 @@ class TestParsing:
         href = pydantic.parse_obj_as(Href[Hero], hero_id)
         assert href == Href(key=hero_id, url=f"http://example.com/heroes/{hero_id}")
 
-    @given(key=st.one_of(st.text(), st.tuples(st.uuids(), st.text())))
+    @given(key=_everything_except(uuid.UUID))
     def test_parse_hero_from_key_fail(self, key):
-        try:
-            uuid.UUID(key)
-        except Exception:
-            with pytest.raises(pydantic.ValidationError):
-                pydantic.parse_obj_as(Href[Hero], key)
-        else:
-            assume(False)
+        with pytest.raises(pydantic.ValidationError):
+            pydantic.parse_obj_as(Href[Hero], key)
 
     @given(hero_id=st.uuids())
     def test_parse_hero_from_url(self, hero_id):
@@ -184,8 +265,7 @@ class TestParsing:
     @given(
         url=st.one_of(
             pst.urls(),
-            # max value so it doesn't parse as UUID by accident
-            st.integers(max_value=1000).map(
+            _everything_except(uuid.UUID).map(
                 lambda key: f"http://example.com/heroes/{key}"
             ),
             st.uuids().map(lambda key: f"http://example.com/heroes?key={key}"),
@@ -212,15 +292,10 @@ class TestParsing:
             url=f"{hero_url}/journal/{entry}",
         )
 
-    @given(key=st.one_of(st.uuids(), st.tuples(st.uuids(), st.text())))
+    @given(key=st.one_of(st.uuids(), st.tuples(st.uuids(), _everything_except(int))))
     def test_parse_journal_from_key_fail(self, key):
-        try:
-            int(key[1])
-        except Exception:
-            with pytest.raises(pydantic.ValidationError):
-                pydantic.parse_obj_as(Href[JournalEntry], key)
-        else:
-            assume(False)
+        with pytest.raises((pydantic.ValidationError, OverflowError)):
+            pydantic.parse_obj_as(Href[JournalEntry], key)
 
     @given(hero_id=st.uuids(), entry=st.integers())
     def test_parse_journal_from_url(self, hero_id, entry):
@@ -232,15 +307,17 @@ class TestParsing:
     @given(
         url=st.one_of(
             pst.urls(),
-            st.tuples(st.uuids(), st.uuids()).map(
+            st.tuples(st.uuids(), _everything_except(int)).map(
                 lambda key: f"http://example.com/heroes/{key[0]}/journal/{key[1]}"
             ),
-            # max value so it doesn't parse as UUID by accident
-            st.tuples(st.integers(max_value=1000), st.integers()).map(
+            st.tuples(_everything_except(uuid.UUID), st.integers()).map(
                 lambda key: f"http://example.com/heroes/{key[0]}/journal/{key[1]}"
             ),
             st.tuples(st.uuids(), st.integers()).map(
                 lambda key: f"http://example.com/heroes/{key[0]}/journal?entry={key[1]}"
+            ),
+            st.tuples(st.uuids()).map(
+                lambda key: f"http://example.com/heroes/{key[0]}/journal"
             ),
             st.tuples(st.uuids(), st.integers()).map(
                 lambda key: f"http://example.com/heroes/{key[0]}/familiar?name={key[1]}"
@@ -282,12 +359,14 @@ class TestParsing:
     @given(
         url=st.one_of(
             pst.urls(),
-            # max value so it doesn't parse as UUID by accident
-            st.tuples(st.integers(max_value=1000), st.text()).map(
+            st.tuples(_everything_except(uuid.UUID), st.text()).map(
                 lambda key: f"http://example.com/heroes/{key[0]}/familiar?name={quote(key[1])}"
             ),
             st.tuples(st.uuids(), st.text()).map(
                 lambda key: f"http://example.com/heroes/{key[0]}/familiar/{quote(key[1])}"
+            ),
+            st.tuples(st.uuids()).map(
+                lambda key: f"http://example.com/heroes/{key[0]}/familiar"
             ),
             st.tuples(st.uuids(), st.integers()).map(
                 lambda key: f"http://example.com/heroes/{key[0]}/journal/{key[1]}"
@@ -297,6 +376,33 @@ class TestParsing:
     def test_parse_familiar_from_url_fail(self, url):
         with pytest.raises(pydantic.ValidationError):
             pydantic.parse_obj_as(Href[Familiar], url)
+
+    def test_model_without_details_view_fails(self) -> None:
+        class _FaultyModel(BaseReferrableModel):
+            id: uuid.UUID
+
+        with pytest.raises(AttributeError):
+            pydantic.parse_obj_as(Href[_FaultyModel], uuid.uuid4())
+
+    def test_model_with_nonexistent_details_view_fails(self) -> None:
+        class _FaultyModel(BaseReferrableModel):
+            id: uuid.UUID
+
+            class Config:
+                details_view = "does_not_exist"
+
+        with pytest.raises(RuntimeError):
+            pydantic.parse_obj_as(Href[_FaultyModel], uuid.uuid4())
+
+    def test_model_with_insufficient_key_for_details_view_fails(self) -> None:
+        class _FaultyModel(BaseReferrableModel):
+            id: uuid.UUID
+
+            class Config:
+                details_view = "complex_route"
+
+        with pytest.raises(RuntimeError):
+            pydantic.parse_obj_as(Href[_FaultyModel], uuid.uuid4())
 
 
 def test_http_endpoint():

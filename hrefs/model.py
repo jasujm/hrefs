@@ -68,7 +68,7 @@ class HrefResolver(typing_extensions.Protocol):
         Returns:
             The URL parsed from ``key``
         """
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     @abc.abstractmethod
     def url_to_key(
@@ -84,7 +84,7 @@ class HrefResolver(typing_extensions.Protocol):
         Returns:
             The key parsed from ``url``
         """
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
 
 _href_resolver_var: contextvars.ContextVar[HrefResolver] = contextvars.ContextVar(
@@ -92,7 +92,7 @@ _href_resolver_var: contextvars.ContextVar[HrefResolver] = contextvars.ContextVa
 )
 
 
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     HrefResolverVar = typing.TypeVar("HrefResolverVar", bound=HrefResolver)
 
     def resolve_hrefs(
