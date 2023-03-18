@@ -13,7 +13,7 @@ library to testing internally, and includes a hypothesis plugin for generating
 mechanism, you don't need to do anything except ``import hypothesis`` and start
 generating hyperlinks:
 
-.. code-block:: python
+.. testcode:: hypothesis
 
    from dataclasses import dataclass
    from hrefs import Href, Referrable
@@ -31,13 +31,15 @@ generating hyperlinks:
            return f"/books/{key}"
 
        @staticmethod
-       def url_to_key(url: str):
+       def url_to_key(url: str) -> int:
            return int(url.split("/")[-1])
 
    @given(st.from_type(Href[Book]))
    def test_hrefs_with_hypothesis(href):
        assert isinstance(href, Href)
        assert href.url == f"/books/{href.key}"
+
+   test_hrefs_with_hypothesis()
 
 Using ``hypothesis`` with FastAPI/Starlette
 -------------------------------------------
@@ -52,30 +54,36 @@ test case even takes over.
 In order to give ``hypothesis`` the context, you can use fixtures. Here is an
 example using `pytest <https://docs.pytest.org/>`_:
 
-.. code-block:: python
+.. testcode:: pytest
 
    from pytest import fixture
    from fastapi import FastAPI
-   from hrefs import BaseReferrableModel
+   from hrefs import Href, BaseReferrableModel
    from hrefs.starlette import href_context
    from hypothesis import given, strategies as st
 
-   app = FastAPI(...)
+   app = FastAPI()
 
    class Book(BaseReferrableModel):
        id: int
 
-       # ...the rest of the definitions...
+       class Config:
+           details_view = "get_book"
+
+   @app.get("/books/{id}")
+   def get_my_model(id: int) -> Book:
+       ...
 
    @fixture(scope="module", autouse=True)
    def appcontext():
-       with href_context(app, base_url="http://testserver"):
+       with href_context(app, base_url="http://example.com"):
            yield
 
    @given(st.from_type(Href[Book]))
-   def test_hrefs_with_hypothesis(href):
+   def test_hrefs_with_hypothesis_and_pytest(href):
        assert isinstance(href, Href)
-       assert href.url == f"http://testserver/books/{href.key}"
+       assert href.url == f"http://example.com/books/{href.key}"
+       assert False
 
 The example uses a module-scoped fixture. There is nothing wrong in using
 function-scoped fixtures, but they are unnecessarily granular and `hypothesis

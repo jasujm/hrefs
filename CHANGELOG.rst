@@ -1,3 +1,9 @@
+Unlreleased
+-----------
+
+Fixed:
+ * Fixed incorrect documentation
+
 Version 0.9
 -----------
 
