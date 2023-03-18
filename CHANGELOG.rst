@@ -1,5 +1,8 @@
-Unlreleased
------------
+Version 0.10
+------------
+
+Date
+  2023-03-19
 
 Changed
  * Some configuration errors in the Starlette integration (missing
