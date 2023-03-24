@@ -83,7 +83,6 @@ example using `pytest <https://docs.pytest.org/>`_:
    def test_hrefs_with_hypothesis_and_pytest(href):
        assert isinstance(href, Href)
        assert href.url == f"http://example.com/books/{href.key}"
-       assert False
 
 The example uses a module-scoped fixture. There is nothing wrong in using
 function-scoped fixtures, but they are unnecessarily granular and `hypothesis
