@@ -1,6 +1,8 @@
 """Tests for Starlette/FastAPI integration"""
 
+import contextlib
 import uuid
+from unittest.mock import AsyncMock
 from urllib.parse import quote_plus as quote
 
 from hypothesis import given, strategies as st, provisional as pst
@@ -419,6 +421,28 @@ def test_websocket_endpoint():
         websocket.send_text(id)
         response = websocket.receive_text()
     assert response == f"http://testserver/heroes/{id}"
+
+
+def test_app_with_lifespan():
+    startup = AsyncMock()
+    shutdown = AsyncMock()
+
+    @contextlib.asynccontextmanager
+    async def lifespan(_app):
+        await startup()
+        yield
+        await shutdown()
+
+    app = Starlette(
+        routes=[Route("/heroes", name="get_hero", endpoint=_http_endpoint)],
+        middleware=[Middleware(HrefMiddleware)],
+        lifespan=lifespan,
+    )
+    with TestClient(app) as client:
+        client.get(f"/heroes?id={uuid.uuid4()}")
+
+    startup.assert_awaited()
+    shutdown.assert_awaited()
 
 
 def test_app_as_href_context_without_base_url_fails():

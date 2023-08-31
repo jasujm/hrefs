@@ -1,5 +1,6 @@
 """Starlette integration"""
 
+import contextlib
 import functools
 import itertools
 import typing
@@ -222,8 +223,12 @@ class HrefMiddleware:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
-        connection = HTTPConnection(scope)
-        with href_context(connection):
+        ctx: contextlib.AbstractContextManager
+        if scope["type"] in ("http", "websocket"):
+            ctx = href_context(HTTPConnection(scope))
+        else:
+            ctx = contextlib.nullcontext()
+        with ctx:
             await self.app(scope, receive, send)
 
 
