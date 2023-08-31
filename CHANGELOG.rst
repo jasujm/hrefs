@@ -4,6 +4,9 @@ Unreleased
 Fixed
  * Fixed JSON encoding error with recent FastAPI versions
 
+Deprecated
+ * Python 3.7 is EOL. It is still allowed, but no longer tested.
+
 Version 0.10
 ------------
 
