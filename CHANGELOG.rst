@@ -1,3 +1,9 @@
+Unreleased
+----------
+
+Fixed
+ * Fixed JSON encoding error with recent FastAPI versions
+
 Version 0.10
 ------------
 

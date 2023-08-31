@@ -12,6 +12,7 @@ from starlette.applications import Starlette
 from starlette.routing import Route, BaseRoute, Mount, Match
 from starlette.types import ASGIApp, Scope, Receive, Send
 
+from .href import Href
 from .model import BaseReferrableModel, HrefResolver, resolve_hrefs, _URL_MODEL
 from .errors import ReferrableModelError
 
@@ -238,3 +239,13 @@ class ReferrableModel(BaseReferrableModel):
         warnings.warn(
             "Models should inherit BaseReferrableModel directly", DeprecationWarning
         )
+
+
+try:
+    from fastapi.encoders import ENCODERS_BY_TYPE as _FASTAPI_ENCODERS_BY_TYPE
+except ImportError:  # pragma: no cover
+    pass
+else:
+    import operator
+
+    _FASTAPI_ENCODERS_BY_TYPE[Href] = operator.attrgetter("url")

@@ -2,7 +2,6 @@
 
 import abc
 import inspect
-import operator
 import typing
 import warnings
 
@@ -260,11 +259,13 @@ class Href(typing.Generic[ReferrableType]):
 
 
 try:
-    from pydantic.json import ENCODERS_BY_TYPE
+    from pydantic.json import ENCODERS_BY_TYPE as _ENCODERS_BY_TYPE
 except ImportError:  # pragma: no cover
     warnings.warn(
         "Failed to add Href encoder. This may affect serializing Href instances to json.",
         ImportWarning,
     )
 else:
-    ENCODERS_BY_TYPE[Href] = operator.attrgetter("url")
+    import operator
+
+    _ENCODERS_BY_TYPE[Href] = operator.attrgetter("url")
