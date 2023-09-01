@@ -1,5 +1,8 @@
-Unreleased
-----------
+Version 0.11.1
+--------------
+
+Date
+  2023-09-01
 
 Changed
  * Specify ``pydantic<2`` in requirements, since the library doesn't yet work
