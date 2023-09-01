@@ -1,5 +1,8 @@
-Unreleased
-----------
+Version 0.11
+-----------
+
+Date
+  2023-09-01
 
 Fixed
  * Fixed JSON encoding error with recent FastAPI versions
