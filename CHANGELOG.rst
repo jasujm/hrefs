@@ -1,5 +1,11 @@
+Unreleased
+----------
+
+Changed
+ * Documentation fixes
+
 Version 0.11
------------
+------------
 
 Date
   2023-09-01

@@ -9,9 +9,9 @@ Using ``hrefs`` with FastAPI
 Setting up the application
 ..........................
 
-Before starting to use the :mod:`hrefs` library to resolve between models and
-URLs, :class:`hrefs.starlette.HrefMiddleware` needs to be included in the
-middleware stack.
+To make the :mod:`hrefs` library work with FastAPI,
+:class:`hrefs.starlette.HrefMiddleware` needs to be included in the middleware
+stack.
 
 .. testcode::
 
@@ -55,18 +55,18 @@ To make a model target for hyperlinks, it needs to:
 
 * Inherit from :class:`hrefs.BaseReferrableModel`.
 
-* Have a configuration called ``details_view`` naming the route that will return
-  the details of the referrable model. The URLs will be built by reversed
-  routing, using the *primary key* of the model as parameters.
+* Have a configuration called ``details_view`` naming the route that returns the
+  representation of the model. The URLs will be built by reversing that route,
+  using the model primary key as parameter.
 
-In the above example ``Book.id`` is the primary key. This may or may not
-correspond to the primary key in a database, but ``hrefs`` really isn't
-concerned with the database layer. By default, the primary key is the ``id``
-field but can be configured. See :ref:`configure_key` for details.
+In the above example ``Book.id`` is the primary key. The primary key usually
+corresponds to a database primary key, but it's by no means a requirement. By
+default, the primary key is the ``id`` field but can be configured. See
+:ref:`configure_key` for details.
 
 The primary key name typically appears as a path parameter in the route, but
-this isn't required. Keys can be converted to and from both path and query
-parameters. Keys omitted from the path are assumed to be query parameters.
+this isn't required either. Keys can be converted to and from both path and
+query parameters. Keys omitted from the path are assumed to be query parameters.
 
 .. note::
 
@@ -120,8 +120,7 @@ Defining a relationship to the referrable model
            headers={"Location": parse_obj_as(Href[Library], library).url},
        )
 
-An annotated type ``Href[Book]`` is used to declare a hyperlink to ``Book`` ---
-or any other subclass of :class:`hrefs.Referrable` for that matter!
+The annotated type ``Href[Book]`` is used to declare a hyperlink to ``Book``.
 
 The :class:`hrefs.Href` class integrates to `pydantic
 <https://pydantic-docs.helpmanual.io/>`_. When parsing the ``books`` field, the
@@ -131,8 +130,7 @@ following values can automatically be converted to hyperlinks:
 
 * An instance of the referred object type (in this case ``Book``).
 
-* A value convertible to the ``id`` type of the referred object (in this case
-  ``int``).
+* Any value convertible to the type of the ``id`` field (in this case ``int``).
 
 * A URL that can be matched to the route named in the ``details_view`` of the
   referred object type (in this case ``"get_library"``).
