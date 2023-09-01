@@ -2,6 +2,8 @@ Unreleased
 ----------
 
 Changed
+ * Specify ``pydantic<2`` in requirements, since the library doesn't yet work
+   with ``pydantic>=2``
  * Documentation fixes
 
 Version 0.11
