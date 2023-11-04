@@ -16,7 +16,7 @@ import typing_extensions
 
 from .href import Href, Referrable
 from .errors import ReferrableModelError
-from ._util import TypeParser
+from ._util import TypeParser, is_pydantic_2
 
 _DEFAULT_KEY = "id"
 
@@ -193,11 +193,20 @@ class _ReferrableModelKeyInfo(typing.NamedTuple):
     field_name: str
 
 
-class _ReferrableModelMeta(pydantic.main.ModelMetaclass):
+if is_pydantic_2():
+    from pydantic._internal._model_construction import ModelMetaclass as _ModelMetaclass
+else:
+    from pydantic.main import ModelMetaclass as _ModelMetaclass
+
+
+class _ReferrableModelMeta(_ModelMetaclass):
     def __new__(cls, name, bases, namespace, **kwargs):
-        annotations = pydantic.typing.resolve_annotations(
-            namespace.get("__annotations__", {}), namespace.get("__module__", None)
-        )
+        if is_pydantic_2():
+            annotations = namespace.get("__annotations__", {})
+        else:
+            annotations = pydantic.typing.resolve_annotations(
+                namespace.get("__annotations__", {}), namespace.get("__module__", None)
+            )
         key_names, key_infos = cls._create_key_names_and_types(name, annotations)
         assert len(key_names) == len(key_infos)
 
