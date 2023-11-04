@@ -1,3 +1,15 @@
+Unreleased
+----------
+
+Added
+ * Support ``pydantic>=2``
+
+Deprecated
+ * ``pydantic`` v2 introduces numerous changes to schema generation, error
+   handling etc. when compared to v1. No effort has been made to preserve
+   internal (undocumented) interfaces, and other implementation details between
+   the versions.
+
 Version 0.11.1
 --------------
 

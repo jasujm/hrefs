@@ -14,7 +14,7 @@ from starlette.routing import Route, BaseRoute, Mount, Match
 from starlette.types import ASGIApp, Scope, Receive, Send
 
 from .href import Href
-from .model import BaseReferrableModel, HrefResolver, resolve_hrefs, _URL_MODEL
+from .model import BaseReferrableModel, HrefResolver, resolve_hrefs, _URL_PARSER
 from .errors import ReferrableModelError
 
 RequestOrApp = typing.Union[HTTPConnection, Starlette]
@@ -127,9 +127,7 @@ class _StarletteHrefResolver(HrefResolver):
         # Convert it in case an older version is in use
         if isinstance(url, str):  # pragma: no cover
             url = URL(url)
-        return _URL_MODEL.parse_obj(  # type: ignore
-            str(url.replace_query_params(**query_params))
-        ).__root__
+        return _URL_PARSER.parse(str(url.replace_query_params(**query_params)))
 
     def url_to_key(
         self, url: pydantic.AnyHttpUrl, *, model_cls: ModelType

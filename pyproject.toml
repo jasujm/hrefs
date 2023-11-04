@@ -32,7 +32,7 @@ license = {file = "LICENSE"}
 readme = "README.rst"
 dynamic = ["version", "description"]
 dependencies = [
-  "pydantic>=1.8,<2",
+  "pydantic>=1.8",
   "starlette",
   "typing_extensions",
 ]

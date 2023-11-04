@@ -16,12 +16,11 @@ import typing_extensions
 
 from .href import Href, Referrable
 from .errors import ReferrableModelError
+from ._util import TypeParser
 
 _DEFAULT_KEY = "id"
 
-_URL_MODEL: typing.Type[pydantic.BaseModel] = pydantic.create_model(
-    "_URL_MODEL", __root__=(pydantic.AnyHttpUrl, ...)
-)
+_URL_PARSER = TypeParser(pydantic.AnyHttpUrl)
 
 
 def _unwrap_key(obj: typing.Any):
@@ -205,18 +204,18 @@ class _ReferrableModelMeta(pydantic.main.ModelMetaclass):
         if key_infos or not cls._has_referrable_model_base(bases):
             if len(key_infos) == 1:
                 (
-                    key_model,
+                    key_parser,
                     get_key,
                 ) = cls._create_key_converters_single_type(key_infos[0])
 
             else:
                 (
-                    key_model,
+                    key_parser,
                     get_key,
                 ) = cls._create_key_converters_multiple_types(key_names, key_infos)
 
             namespace["_key_names"] = tuple(key_names)
-            namespace["_key_model"] = key_model
+            namespace["_key_parser"] = key_parser
             namespace["_get_key"] = get_key
             namespace["_key_map"] = {}
 
@@ -289,36 +288,32 @@ class _ReferrableModelMeta(pydantic.main.ModelMetaclass):
                 for (key_name, key_info) in zip(key_names, key_infos)
             ],
         )
-        key_model = cls._create_key_model(key_type)
+        key_parser = TypeParser(key_type)
 
         def get_key(self):
-            return key_model(
-                __root__=[
+            return key_parser.parse(
+                [
                     _getattr_and_maybe_unwrap_key(
                         self, key_info.field_name, key_info.should_unwrap_key
                     )
                     for key_name, key_info in zip(key_names, key_infos)
                 ]
-            ).__root__
+            )
 
-        return key_model, get_key
+        return key_parser, get_key
 
     @classmethod
     def _create_key_converters_single_type(cls, key_info: _ReferrableModelKeyInfo):
-        key_model = cls._create_key_model(key_info.key_type)
+        key_parser = TypeParser(key_info.key_type)
 
         def get_key(self):
-            return key_model(
-                __root__=_getattr_and_maybe_unwrap_key(
+            return key_parser.parse(
+                _getattr_and_maybe_unwrap_key(
                     self, key_info.field_name, key_info.should_unwrap_key
                 )
-            ).__root__
+            )
 
-        return key_model, get_key
-
-    @staticmethod
-    def _create_key_model(key_type: typing.Type):
-        return pydantic.create_model("key_model", __root__=(key_type, ...))
+        return key_parser, get_key
 
 
 class BaseReferrableModel(
@@ -350,7 +345,7 @@ class BaseReferrableModel(
     incorrectly configured.
     """
 
-    _key_model: typing.ClassVar[typing.Type[pydantic.BaseModel]]
+    _key_parser: typing.ClassVar[TypeParser[typing.Any]]
     _key_names: typing.ClassVar[typing.Tuple[str, ...]]
     _get_key: typing.ClassVar[typing.Callable[["BaseReferrableModel"], typing.Any]]
     _key_map: typing.ClassVar[
@@ -401,12 +396,12 @@ class BaseReferrableModel(
         The type of the model key is based on the field annotations.  Either a
         single type, or (in the case of a composite key), a tuple of the parts.
         """
-        return cls._try_parse_as(cls._key_model, value)
+        return cls._key_parser.try_parse(value)
 
     @classmethod
     def parse_as_url(cls, value: typing.Any) -> typing.Optional[pydantic.AnyHttpUrl]:
         """Parse ``value`` as an URL (a :class:`pydantic.AnyHttpUrl` instance)"""
-        return cls._try_parse_as(_URL_MODEL, value)
+        return _URL_PARSER.parse(value)
 
     @classmethod
     def has_simple_key(cls) -> bool:
@@ -478,34 +473,20 @@ class BaseReferrableModel(
             ) from ex
         if cls.has_simple_key():
             subkeys = subkeys[0]
-        return cls._parse_as(cls._key_model, subkeys)
+        return cls._key_parser.parse(subkeys)
 
     @classmethod
     def update_forward_refs(cls, **localns: typing.Any) -> None:
         super().update_forward_refs(**localns)
-        cls._key_model.update_forward_refs(**localns)
+        cls._key_parser.update_forward_refs(**localns)
         cls._calculate_key_map()
-
-    @staticmethod
-    def _parse_as(model: typing.Type[pydantic.BaseModel], value: typing.Any):
-        parsed_value = model.parse_obj(value)
-        return getattr(parsed_value, "__root__")
-
-    @classmethod
-    def _try_parse_as(
-        cls, model: typing.Type[pydantic.BaseModel], value: typing.Any
-    ) -> typing.Optional[typing.Any]:
-        try:
-            return cls._parse_as(model, value)
-        except pydantic.ValidationError:
-            return None
 
     @classmethod
     def _calculate_key_map(cls) -> None:
         if not cls._key_names:
             return
 
-        key_type = cls._key_model.__fields__["__root__"].outer_type_
+        key_type = cls._key_parser.get_type()
         key_types: typing.Dict[str, typing.Type]
         if cls.has_simple_key():
             key_name = cls._key_names[0]
