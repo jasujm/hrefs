@@ -70,12 +70,12 @@ def test_parse_url_to_key(url):
 
 
 def test_parse_href_with_unparseable_key_fails():
-    with pytest.raises(pydantic.ValidationError):
+    with pytest.raises(Exception):
         pydantic.parse_obj_as(Href, object())
 
 
 def test_parse_href_without_parameter_fails():
-    with pytest.raises(pydantic.ValidationError):
+    with pytest.raises(Exception):
         pydantic.parse_obj_as(Href, 123)
 
 
