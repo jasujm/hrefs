@@ -7,6 +7,11 @@ import warnings
 
 import pydantic
 
+from ._util import is_pydantic_2
+
+if is_pydantic_2():
+    import pydantic_core
+
 T = typing.TypeVar("T")
 KeyType = typing.TypeVar("KeyType")  # pylint: disable=invalid-name
 UrlType = typing.TypeVar("UrlType")  # pylint: disable=invalid-name
@@ -153,12 +158,19 @@ ReferrableType = typing.TypeVar(  # pylint: disable=invalid-name
 class Href(typing.Generic[ReferrableType]):
     """Hypertext reference to another model
 
-    The class is generic and can be annotated by a type implementing the
+    The class is generic and can be annotated with a type implementing the
     :class:`Referrable` ABC.  If ``Book`` is assumed to be a type implementing
     :class:`Referrable`, then ``Href[Book]`` represents a hyperlink to a book.
 
-    The annotations are compatible with pydantic and allow it to know what kind
-    of reference it is working with (see :ref:`quickstart`).
+    A user typically doesn't create a ``Href`` object manually.  It is much more
+    common to use ``pydantic`` to parse it from one of the following:
+
+      * Another :class:`Href` instance
+      * An instance of the referred model
+      * A value of the key type (interpreted as key identifying the referred object)
+      * A url string (interpreted as URL to the referred object)
+
+    See :ref:`quickstart` for more information.
     """
 
     __slots__ = ["_key", "_url"]
@@ -196,58 +208,57 @@ class Href(typing.Generic[ReferrableType]):
         return self._url
 
     @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, value, field: "pydantic.fields.ModelField"):
-        """Parse ``value`` into hyperlink
-
-        This method is mainly intended for the pydantic integration. A user rarely
-        needs to call it directly.
-
-        Arguments:
-          value:
-
-            The parsed object. It can be either:
-
-            * Another :class:`Href` instance
-            * An instance of the referred model
-            * A value of the key type (interpreted as key identifying the referred object)
-            * A url string (interpreted as URL to the referred object)
-
-        Returns:
-          A :class:`Href` object referring the model identified by the ``value``
-          argument.
-
-        Raises:
-          :exc:`TypeError`: If the :class:`Href` model isn't properly annotated, or if
-            ``value`` doesn't conform to any of the recognized types
-        """
-        if not field.sub_fields:
-            raise TypeError("Expected sub field")
-        model_type: typing.Type[ReferrableType] = field.sub_fields[0].type_
+    def _validate(cls, value, referrable_type: typing.Type[ReferrableType]):
         if isinstance(value, cls):
             return value
-        if isinstance(value, model_type):
+        if isinstance(value, referrable_type):
             key = value.get_key()
-            return cls._from_key(key, model_type)
-        key = model_type.parse_as_key(value)
+            return cls._from_key(key, referrable_type)
+        key = referrable_type.parse_as_key(value)
         if key is not None:
-            return cls._from_key(key, model_type)
-        url = model_type.parse_as_url(value)
+            return cls._from_key(key, referrable_type)
+        url = referrable_type.parse_as_url(value)
         if url is not None:
-            return cls._from_url(url, model_type)
-        raise TypeError(f"Could not convert {value!r} to href")
+            return cls._from_url(url, referrable_type)
+        raise ValueError(f"Could not convert {value!r} to href")
 
-    @staticmethod
-    def __modify_schema__(
-        schema: typing.MutableMapping[str, typing.Any],
-        field: typing.Optional["pydantic.fields.ModelField"] = None,
-    ):
-        if field and field.sub_fields:
-            referred: typing.Type[ReferrableType] = field.sub_fields[0].type_
-            referred.__modify_href_schema__(schema, field)
+    if is_pydantic_2():
+
+        @classmethod
+        def __get_pydantic_core_schema__(
+            cls, source_type: typing.Any, handler: pydantic.GetCoreSchemaHandler
+        ):
+            if not (source_type is cls or typing.get_origin(source_type) is cls):
+                raise TypeError("Expected `source_type` to be `Href`")
+            args = typing.get_args(source_type)
+            if len(args) != 1:
+                raise TypeError("Expected `Href` to have parameter")
+            referrable_type: typing.Type[ReferrableType] = args[0]
+            return pydantic_core.core_schema.no_info_plain_validator_function(
+                lambda value: cls._validate(value, referrable_type)
+            )
+
+    else:
+
+        @classmethod
+        def _validate_model(cls, value, field: "pydantic.fields.ModelField"):
+            if not field.sub_fields:
+                raise TypeError("Expected sub field")
+            referrable_type: typing.Type[ReferrableType] = field.sub_fields[0].type_
+            return cls._validate(value, referrable_type)
+
+        @classmethod
+        def __get_validators__(cls):
+            yield cls._validate
+
+        @staticmethod
+        def __modify_schema__(
+            schema: typing.MutableMapping[str, typing.Any],
+            field: typing.Optional["pydantic.fields.ModelField"] = None,
+        ):
+            if field and field.sub_fields:
+                referred: typing.Type[ReferrableType] = field.sub_fields[0].type_
+                referred.__modify_href_schema__(schema, field)
 
     @classmethod
     def _from_key(cls, key: KeyType, model_type: typing.Type[ReferrableType]):

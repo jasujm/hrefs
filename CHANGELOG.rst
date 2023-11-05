@@ -4,6 +4,13 @@ Unreleased
 Added
  * Support ``pydantic>=2``
 
+Changed
+ * ``TypeError`` is no longer used in validation errors because that is
+   deprecated in ``pydantic`` v2
+ * There are changes in the library behavior when using ``pydantic`` v2, including:
+     * Unparameterized ``Href`` causes error on model definition time, instead of
+       model validation time
+
 Deprecated
  * ``pydantic`` v2 introduces numerous changes to schema generation, error
    handling etc. when compared to v1. No effort has been made to preserve
