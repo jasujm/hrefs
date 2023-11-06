@@ -2,10 +2,12 @@
 
 import abc
 import inspect
+import operator
 import typing
 import warnings
 
 import pydantic
+from pydantic_core import core_schema
 
 from ._util import is_pydantic_2
 
@@ -234,8 +236,11 @@ class Href(typing.Generic[ReferrableType]):
             if len(args) != 1:
                 raise TypeError("Expected `Href` to have parameter")
             referrable_type: typing.Type[ReferrableType] = args[0]
-            return pydantic_core.core_schema.no_info_plain_validator_function(
-                lambda value: cls._validate(value, referrable_type)
+            return core_schema.no_info_plain_validator_function(
+                lambda value: cls._validate(value, referrable_type),
+                serialization=core_schema.plain_serializer_function_ser_schema(
+                    operator.attrgetter("url")
+                ),
             )
 
     else:
@@ -269,14 +274,13 @@ class Href(typing.Generic[ReferrableType]):
         return cls(key=model_type.url_to_key(url), url=url)
 
 
-try:
-    from pydantic.json import ENCODERS_BY_TYPE as _ENCODERS_BY_TYPE
-except ImportError:  # pragma: no cover
-    warnings.warn(
-        "Failed to add Href encoder. This may affect serializing Href instances to json.",
-        ImportWarning,
-    )
-else:
-    import operator
-
-    _ENCODERS_BY_TYPE[Href] = operator.attrgetter("url")
+if not is_pydantic_2():
+    try:
+        from pydantic.json import ENCODERS_BY_TYPE as _ENCODERS_BY_TYPE
+    except ImportError:  # pragma: no cover
+        warnings.warn(
+            "Failed to add Href encoder. This may affect serializing Href instances to json.",
+            ImportWarning,
+        )
+    else:
+        _ENCODERS_BY_TYPE[Href] = operator.attrgetter("url")
