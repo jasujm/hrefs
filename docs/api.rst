@@ -21,8 +21,6 @@ The two main building blocks of the :mod:`hrefs` library are
 .. autoclass:: Referrable
    :members:
 
-   .. automethod:: __modify_href_schema__
-
 Pydantic models
 ---------------
 
