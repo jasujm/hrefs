@@ -123,33 +123,35 @@ class Referrable(typing.Generic[KeyType, UrlType], metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()  # pragma: no cover
 
-    @classmethod
-    def __modify_href_schema__(
-        cls,
-        schema: typing.MutableMapping[str, typing.Any],
-        field: "pydantic.fields.ModelField",
-    ):
-        """Modify schema of :class:`Href` to this type
+    if not is_pydantic_2():
 
-        The default implementation reads the return type annotation of
-        :meth:`key_to_url()`, and uses its schema as ``Href`` schema.
+        @classmethod
+        def __modify_href_schema__(
+            cls,
+            schema: typing.MutableMapping[str, typing.Any],
+            field: "pydantic.fields.ModelField",
+        ):
+            """Modify schema of :class:`Href` to this type
 
-        Arguments:
-            schema: the schema being modified
-            field: the ``pydantic`` ``ModelField`` object of the ``Href``
-        """
-        del field  # unused
-        annotation = _get_return_annotation(cls.key_to_url)
-        schema_model: typing.Type[pydantic.BaseModel] = pydantic.create_model(
-            "schema_model", __root__=(annotation, ...)
-        )
-        new_schema = schema_model.schema()
-        # remove properties pydantic populates by default
-        for key_to_remove in "allOf", "$ref":
-            schema.pop(key_to_remove, None)
-        # retain the original title
-        new_schema.pop("title", None)
-        schema.update(new_schema)
+            The default implementation reads the return type annotation of
+            :meth:`key_to_url()`, and uses its schema as ``Href`` schema.
+
+            Arguments:
+                schema: the schema being modified
+                field: the ``pydantic`` ``ModelField`` object of the ``Href``
+            """
+            del field  # unused
+            annotation = _get_return_annotation(cls.key_to_url)
+            schema_model: typing.Type[pydantic.BaseModel] = pydantic.create_model(
+                "schema_model", __root__=(annotation, ...)
+            )
+            new_schema = schema_model.schema()
+            # remove properties pydantic populates by default
+            for key_to_remove in "allOf", "$ref":
+                schema.pop(key_to_remove, None)
+                # retain the original title
+            new_schema.pop("title", None)
+            schema.update(new_schema)
 
 
 ReferrableType = typing.TypeVar(  # pylint: disable=invalid-name
@@ -236,12 +238,25 @@ class Href(typing.Generic[ReferrableType]):
             if len(args) != 1:
                 raise TypeError("Expected `Href` to have parameter")
             referrable_type: typing.Type[ReferrableType] = args[0]
+            url_type = _get_return_annotation(referrable_type.key_to_url)
+            url_schema = handler.generate_schema(url_type)
             return core_schema.no_info_plain_validator_function(
                 lambda value: cls._validate(value, referrable_type),
                 serialization=core_schema.plain_serializer_function_ser_schema(
                     operator.attrgetter("url")
                 ),
+                metadata={"url_schema": url_schema},
             )
+
+        @classmethod
+        def __get_pydantic_json_schema__(
+            cls,
+            core_schema: pydantic_core.CoreSchema,
+            handler: pydantic.GetJsonSchemaHandler,
+        ):
+            json_schema = handler(core_schema["metadata"]["url_schema"])
+            json_schema = handler.resolve_ref_schema(json_schema)
+            return json_schema
 
     else:
 
