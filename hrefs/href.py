@@ -254,7 +254,7 @@ class Href(typing.Generic[ReferrableType]):
 
         @classmethod
         def __get_validators__(cls):
-            yield cls._validate
+            yield cls._validate_model
 
         @staticmethod
         def __modify_schema__(
