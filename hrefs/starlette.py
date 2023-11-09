@@ -15,7 +15,7 @@ from starlette.types import ASGIApp, Scope, Receive, Send
 
 from .href import Href
 from .model import BaseReferrableModel, HrefResolver, resolve_hrefs
-from ._util import parse_url
+from ._util import parse_url, get_model_config
 from .errors import ReferrableModelError
 
 RequestOrApp = typing.Union[HTTPConnection, Starlette]
@@ -25,12 +25,12 @@ RouteChain = typing.List[typing.Union[Route, Mount]]
 
 
 def _get_details_view(model_cls: ModelType) -> str:
-    try:
-        return getattr(model_cls.__config__, "details_view")
-    except AttributeError as ex:
+    details_view = get_model_config(model_cls, "details_view")
+    if not details_view:
         raise ReferrableModelError(
             f"Referrable model {model_cls.__name__} missing details_view"
-        ) from ex
+        )
+    return details_view
 
 
 def _calculate_route_chain(
