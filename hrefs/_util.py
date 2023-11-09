@@ -63,3 +63,16 @@ def parse_url(value: typing.Any) -> pydantic.AnyHttpUrl:
 def try_parse_url(value: typing.Any) -> typing.Optional[pydantic.AnyHttpUrl]:
     """Try parse ``value`` as URL"""
     return _URL_PARSER.try_parse(value)
+
+
+if is_pydantic_2():
+
+    def get_model_config(model_cls: typing.Type[pydantic.BaseModel], config: str):
+        """Get model config, or ``None`` if ``config`` does not exist"""
+        return model_cls.model_config.get(config)
+
+else:
+
+    def get_model_config(model_cls: typing.Type[pydantic.BaseModel], config: str):
+        """Get model config, or ``None`` if ``config`` does not exist"""
+        return getattr(model_cls.__config__, config, None)

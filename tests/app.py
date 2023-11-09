@@ -119,7 +119,7 @@ def post_library(library: LibraryCreate):
     libraries[new_library.self] = new_library
     return Response(
         status_code=201,
-        headers={"Location": new_library.self.url},
+        headers={"Location": str(new_library.self.url)},
     )
 
 
@@ -141,4 +141,4 @@ def post_book(book: BookCreate):
     header."""
     new_book = Book(self=uuid.uuid4(), **book.dict())
     books[new_book.self] = new_book
-    return Response(status_code=201, headers={"Location": new_book.self.url})
+    return Response(status_code=201, headers={"Location": str(new_book.self.url)})
