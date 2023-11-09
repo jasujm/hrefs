@@ -163,7 +163,7 @@ def test_parse_indirect_href_key_from_referred_model(book_id, page_number):
     page = Page(book=book_id, page_number=page_number)
     href = pydantic.parse_obj_as(Href[Bookmark], page)
     assert href.key == pydantic.parse_obj_as(Href[Page], (page.book, page_number))
-    assert href.url == Bookmark.key_to_url((page.book, page_number))
+    assert href.url == Bookmark.key_to_url((page.book.key, page_number))
 
 
 @given(book_id=st.integers(), page_number=st.integers())

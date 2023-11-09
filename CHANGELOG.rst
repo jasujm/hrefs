@@ -17,6 +17,9 @@ Deprecated
    internal (undocumented) interfaces, and other implementation details between
    the versions.
 
+Fixed
+ * Unwrapping of path parameters when the model key contains recursive hyperlinks
+
 Version 0.11.1
 --------------
 

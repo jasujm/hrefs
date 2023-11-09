@@ -24,6 +24,8 @@ _DEFAULT_KEY = "id"
 def _unwrap_key(obj: typing.Any):
     while isinstance(obj, Href):
         obj = obj.key
+        if isinstance(obj, tuple):
+            obj = tuple(_unwrap_key(part) for part in obj)
     return obj
 
 
