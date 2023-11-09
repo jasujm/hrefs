@@ -16,11 +16,9 @@ import typing_extensions
 
 from .href import Href, Referrable
 from .errors import ReferrableModelError
-from ._util import TypeParser, is_pydantic_2
+from ._util import TypeParser, is_pydantic_2, try_parse_url
 
 _DEFAULT_KEY = "id"
-
-_URL_PARSER = TypeParser(pydantic.AnyHttpUrl)
 
 
 def _unwrap_key(obj: typing.Any):
@@ -410,7 +408,7 @@ class BaseReferrableModel(
     @classmethod
     def parse_as_url(cls, value: typing.Any) -> typing.Optional[pydantic.AnyHttpUrl]:
         """Parse ``value`` as an URL (a :class:`pydantic.AnyHttpUrl` instance)"""
-        return _URL_PARSER.parse(value)
+        return try_parse_url(value)
 
     @classmethod
     def has_simple_key(cls) -> bool:

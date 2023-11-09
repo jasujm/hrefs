@@ -50,3 +50,16 @@ class TypeParser(typing.Generic[T]):
     def to_hypothesis_strategy(self, st):
         """Return hypothesis strategy for the underlying type"""
         return st.from_type(self._model).map(operator.attrgetter("root"))
+
+
+_URL_PARSER = TypeParser(pydantic.AnyHttpUrl)
+
+
+def parse_url(value: typing.Any) -> pydantic.AnyHttpUrl:
+    """Parse ``value`` as URL"""
+    return _URL_PARSER.parse(value)
+
+
+def try_parse_url(value: typing.Any) -> typing.Optional[pydantic.AnyHttpUrl]:
+    """Try parse ``value`` as URL"""
+    return _URL_PARSER.try_parse(value)

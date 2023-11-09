@@ -8,6 +8,7 @@ import pytest
 from typing_extensions import Annotated
 
 from hrefs import Href, BaseReferrableModel, PrimaryKey
+from hrefs._util import parse_url
 
 pytestmark = pytest.mark.usefixtures("href_resolver")
 
@@ -34,8 +35,8 @@ def test_parse_composite_key_to_href(key):
     assert href.url == Page.key_to_url(key)
 
 
-@given(url=st.from_regex(r"\Ahttp://example\.com/pages/\d+/\d+\Z"))
+@given(url=st.from_regex(r"\Ahttp://example\.com/pages/[0-9]+/[0-9]+\Z"))
 def test_parse_composite_url_to_href(url):
     href = pydantic.parse_obj_as(Href[Page], url)
     assert href.key == Page.url_to_key(url)
-    assert href.url == url
+    assert href.url == parse_url(url)
