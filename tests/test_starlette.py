@@ -20,6 +20,7 @@ from typing_extensions import Annotated
 from hrefs import BaseReferrableModel, Href, PrimaryKey, ReferrableModelError
 from hrefs.starlette import HrefMiddleware, href_context
 from hrefs._util import parse_url
+from _util import parse_obj, parse_href
 
 
 class Quest(BaseReferrableModel):
@@ -146,8 +147,8 @@ def _cannot_be_converted_to(excluded_type):
         for try_convert in (
             excluded_type,
             (lambda v: excluded_type(str(v))),
-            (lambda v: pydantic.parse_obj_as(excluded_type, v)),
-            (lambda v: pydantic.parse_obj_as(excluded_type, str(v))),
+            (lambda v: parse_obj(excluded_type, v)),
+            (lambda v: parse_obj(excluded_type, str(v))),
         ):
             try:
                 try_convert(value)
@@ -180,7 +181,7 @@ class TestParsing:  # pylint: disable=too-many-public-methods
 
     @given(quest_id=st.uuids())
     def test_parse_quest_from_key(self, quest_id):
-        href = pydantic.parse_obj_as(Href[Quest], quest_id)
+        href = parse_href(Quest, quest_id)
         assert href == Href(
             key=quest_id, url=parse_url(f"http://example.com/quests/{quest_id}")
         )
@@ -188,12 +189,12 @@ class TestParsing:  # pylint: disable=too-many-public-methods
     @given(key=_everything_except(uuid.UUID))
     def test_parse_quest_from_key_fail(self, key):
         with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[Quest], key)
+            parse_href(Quest, key)
 
     @given(quest_id=st.uuids())
     def test_parse_quest_from_url(self, quest_id):
         url = f"http://example.com/quests/{quest_id}"
-        href = pydantic.parse_obj_as(Href[Quest], url)
+        href = parse_href(Quest, url)
         assert href == Href(key=quest_id, url=parse_url(url))
 
     @given(
@@ -208,11 +209,11 @@ class TestParsing:  # pylint: disable=too-many-public-methods
     )
     def test_parse_quest_from_url_fail(self, url):
         with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[Quest], url)
+            parse_href(Quest, url)
 
     @given(quest_id=st.uuids())
     def test_parse_reward_from_key(self, quest_id):
-        href = pydantic.parse_obj_as(Href[Reward], quest_id)
+        href = parse_href(Reward, quest_id)
         assert href == Href(
             key=Href(
                 key=quest_id, url=parse_url(f"http://example.com/quests/{quest_id}")
@@ -223,13 +224,13 @@ class TestParsing:  # pylint: disable=too-many-public-methods
     @given(key=_everything_except(uuid.UUID))
     def test_parse_reward_from_key_fail(self, key):
         with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[Reward], key)
+            parse_href(Reward, key)
 
     @given(quest_id=st.uuids())
     def test_parse_reward_from_url(self, quest_id):
         quest_url = f"http://example.com/quests/{quest_id}"
         url = f"{quest_url}/reward"
-        href = pydantic.parse_obj_as(Href[Reward], url)
+        href = parse_href(Reward, url)
         assert href == Href(
             key=Href(key=quest_id, url=parse_url(quest_url)),
             url=parse_url(url),
@@ -247,7 +248,7 @@ class TestParsing:  # pylint: disable=too-many-public-methods
     )
     def test_parse_reward_from_url_fail(self, url):
         with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[Reward], url)
+            parse_href(Reward, url)
 
     @given(href=st.from_type(Href[Hero]))
     def test_hero_href(self, href):
@@ -255,7 +256,7 @@ class TestParsing:  # pylint: disable=too-many-public-methods
 
     @given(hero_id=st.uuids())
     def test_parse_hero_from_key(self, hero_id):
-        href = pydantic.parse_obj_as(Href[Hero], hero_id)
+        href = parse_href(Hero, hero_id)
         assert href == Href(
             key=hero_id, url=parse_url(f"http://example.com/heroes/{hero_id}")
         )
@@ -263,12 +264,12 @@ class TestParsing:  # pylint: disable=too-many-public-methods
     @given(key=_everything_except(uuid.UUID))
     def test_parse_hero_from_key_fail(self, key):
         with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[Hero], key)
+            parse_href(Hero, key)
 
     @given(hero_id=st.uuids())
     def test_parse_hero_from_url(self, hero_id):
         url = f"http://example.com/heroes/{hero_id}"
-        href = pydantic.parse_obj_as(Href[Hero], url)
+        href = parse_href(Hero, url)
         assert href == Href(key=hero_id, url=parse_url(url))
 
     @given(
@@ -283,7 +284,7 @@ class TestParsing:  # pylint: disable=too-many-public-methods
     )
     def test_parse_hero_from_url_fail(self, url):
         with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[Hero], url)
+            parse_href(Hero, url)
 
     @given(href=st.from_type(Href[JournalEntry]))
     def test_journal_href(self, href):
@@ -294,7 +295,7 @@ class TestParsing:  # pylint: disable=too-many-public-methods
     @given(hero_id=st.uuids(), entry=st.integers())
     def test_parse_journal_from_key(self, hero_id, entry):
         hero_url = f"http://example.com/heroes/{hero_id}"
-        href = pydantic.parse_obj_as(Href[JournalEntry], (hero_id, entry))
+        href = parse_href(JournalEntry, (hero_id, entry))
         assert href == Href(
             key=(Href(key=hero_id, url=parse_url(hero_url)), entry),
             url=parse_url(f"{hero_url}/journal/{entry}"),
@@ -303,13 +304,13 @@ class TestParsing:  # pylint: disable=too-many-public-methods
     @given(key=st.one_of(st.uuids(), st.tuples(st.uuids(), _everything_except(int))))
     def test_parse_journal_from_key_fail(self, key):
         with pytest.raises((pydantic.ValidationError, OverflowError)):
-            pydantic.parse_obj_as(Href[JournalEntry], key)
+            parse_href(JournalEntry, key)
 
     @given(hero_id=st.uuids(), entry=st.integers())
     def test_parse_journal_from_url(self, hero_id, entry):
         hero_url = f"http://example.com/heroes/{hero_id}"
         url = f"{hero_url}/journal/{entry}"
-        href = pydantic.parse_obj_as(Href[JournalEntry], url)
+        href = parse_href(JournalEntry, url)
         assert href == Href(
             key=(Href(key=hero_id, url=parse_url(hero_url)), entry), url=parse_url(url)
         )
@@ -336,7 +337,7 @@ class TestParsing:  # pylint: disable=too-many-public-methods
     )
     def test_parse_journal_from_url_fail(self, url):
         with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[JournalEntry], url)
+            parse_href(JournalEntry, url)
 
     @given(href=st.from_type(Href[Familiar]))
     def test_familiar_href(self, href):
@@ -347,7 +348,7 @@ class TestParsing:  # pylint: disable=too-many-public-methods
     @given(hero_id=st.uuids(), name=st.text())
     def test_parse_familiar_from_key(self, hero_id, name):
         hero_url = f"http://example.com/heroes/{hero_id}"
-        href = pydantic.parse_obj_as(Href[Familiar], (hero_id, name))
+        href = parse_href(Familiar, (hero_id, name))
         assert href == Href(
             key=(Href(key=hero_id, url=parse_url(hero_url)), name),
             url=parse_url(f"{hero_url}/familiar?name={quote(name)}"),
@@ -356,13 +357,13 @@ class TestParsing:  # pylint: disable=too-many-public-methods
     @given(key=st.one_of(st.uuids(), st.tuples(st.integers(), st.text())))
     def test_parse_familiar_from_key_fail(self, key):
         with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[Familiar], key)
+            parse_href(Familiar, key)
 
     @given(hero_id=st.uuids(), name=st.text())
     def test_parse_familiar_from_url(self, hero_id, name):
         hero_url = f"http://example.com/heroes/{hero_id}"
         url = f"{hero_url}/familiar?name={quote(name)}"
-        href = pydantic.parse_obj_as(Href[Familiar], url)
+        href = parse_href(Familiar, url)
         assert href == Href(
             key=(Href(key=hero_id, url=parse_url(hero_url)), name), url=parse_url(url)
         )
@@ -386,14 +387,14 @@ class TestParsing:  # pylint: disable=too-many-public-methods
     )
     def test_parse_familiar_from_url_fail(self, url):
         with pytest.raises(pydantic.ValidationError):
-            pydantic.parse_obj_as(Href[Familiar], url)
+            parse_href(Familiar, url)
 
     def test_model_without_details_view_fails(self) -> None:
         class _FaultyModel(BaseReferrableModel):
             id: uuid.UUID
 
         with pytest.raises(ReferrableModelError):
-            pydantic.parse_obj_as(Href[_FaultyModel], uuid.uuid4())
+            parse_href(_FaultyModel, uuid.uuid4())
 
     def test_model_with_nonexistent_details_view_fails(self) -> None:
         class _FaultyModel(BaseReferrableModel):
@@ -403,7 +404,7 @@ class TestParsing:  # pylint: disable=too-many-public-methods
                 details_view = "does_not_exist"
 
         with pytest.raises(ReferrableModelError):
-            pydantic.parse_obj_as(Href[_FaultyModel], uuid.uuid4())
+            parse_href(_FaultyModel, uuid.uuid4())
 
     def test_model_with_insufficient_key_for_details_view_fails(self) -> None:
         class _FaultyModel(BaseReferrableModel):
@@ -413,7 +414,7 @@ class TestParsing:  # pylint: disable=too-many-public-methods
                 details_view = "complex_route"
 
         with pytest.raises(ReferrableModelError):
-            pydantic.parse_obj_as(Href[_FaultyModel], uuid.uuid4())
+            parse_href(_FaultyModel, uuid.uuid4())
 
 
 def test_http_endpoint():
@@ -457,7 +458,7 @@ def test_app_with_lifespan():
 def test_app_as_href_context_without_base_url_fails():
     with pytest.raises(RuntimeError):
         with href_context(app):
-            pydantic.parse_obj_as(Href[Hero], uuid.uuid4())
+            parse_href(Hero, uuid.uuid4())
 
 
 def test_referrable_model_deprecated() -> None:

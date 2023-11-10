@@ -10,6 +10,7 @@ import pydantic
 import pytest
 
 from hrefs import Href, Referrable
+from _util import parse_obj, parse_href
 
 
 def _pydantic_does_not_support_field_in_modify_schema():
@@ -45,38 +46,38 @@ class Owner(pydantic.BaseModel):
 
 @given(st.from_type(Href[Pet]))
 def test_parse_href(href):
-    assert pydantic.parse_obj_as(Href[Pet], href) is href
+    assert parse_href(Pet, href) is href
 
 
 @given(st.builds(Pet))
 def test_parse_referrable_model(pet):
-    href = pydantic.parse_obj_as(Href[Pet], pet)
+    href = parse_href(Pet, pet)
     assert href.key == pet.id
     assert href.url == Pet.key_to_url(pet.id)
 
 
 @given(st.integers())
 def test_parse_key_to_href(key):
-    href = pydantic.parse_obj_as(Href[Pet], key)
+    href = parse_href(Pet, key)
     assert href.key == key
     assert href.url == Pet.key_to_url(key)
 
 
 @given(st.from_regex(r"\A/pets/\d+\Z"))
 def test_parse_url_to_key(url):
-    href = pydantic.parse_obj_as(Href[Pet], url)
+    href = parse_href(Pet, url)
     assert href.key == Pet.url_to_key(url)
     assert href.url == url
 
 
 def test_parse_href_with_unparseable_key_fails():
     with pytest.raises(Exception):
-        pydantic.parse_obj_as(Href, object())
+        parse_obj(Href, object())
 
 
 def test_parse_href_without_parameter_fails():
     with pytest.raises(Exception):
-        pydantic.parse_obj_as(Href, 123)
+        parse_obj(Href, 123)
 
 
 @given(st.builds(Owner))
