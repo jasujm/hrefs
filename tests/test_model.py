@@ -6,12 +6,13 @@ import pytest
 from typing_extensions import Annotated
 
 from hrefs import BaseReferrableModel, PrimaryKey, Href, ReferrableModelError
+from _util import parse_href
 
 pytestmark = pytest.mark.usefixtures("href_resolver")
 
 
 def test_base_referrable_model_has_empty_key():
-    href = pydantic.parse_obj_as(Href[BaseReferrableModel], BaseReferrableModel())
+    href = parse_href(BaseReferrableModel, BaseReferrableModel())
     assert href.key == ()
     assert href.url == BaseReferrableModel.key_to_url(())
 
@@ -22,10 +23,10 @@ def test_simple_model(id) -> None:
         id: int
 
     model = _SimpleModel(id=id)
-    href = pydantic.parse_obj_as(Href[_SimpleModel], model)
+    href = parse_href(_SimpleModel, model)
     assert href.key == id
     assert href.url == _SimpleModel.key_to_url(id)
-    assert href == pydantic.parse_obj_as(Href[_SimpleModel], href.url)
+    assert href == parse_href(_SimpleModel, href.url)
 
 
 @given(st.integers())
@@ -34,10 +35,10 @@ def test_primary_key_annotation(my_id) -> None:
         my_id: Annotated[int, PrimaryKey]
 
     model = _MyModel(my_id=my_id)
-    href = pydantic.parse_obj_as(Href[_MyModel], model)
+    href = parse_href(_MyModel, model)
     assert href.key == my_id
     assert href.url == _MyModel.key_to_url(my_id)
-    assert href == pydantic.parse_obj_as(Href[_MyModel], href.url)
+    assert href == parse_href(_MyModel, href.url)
 
 
 def test_multiple_primary_key_annotations_fails() -> None:
@@ -61,11 +62,11 @@ def test_href_forward_reference(id) -> None:
     _MyModel.update_forward_refs()
 
     model = _MyModel(id=id)
-    href = pydantic.parse_obj_as(Href[_MyModel], model)
+    href = parse_href(_MyModel, model)
     assert model.self == href
     assert href.key == id
     assert href.url == _MyModel.key_to_url(id)
-    assert href == pydantic.parse_obj_as(Href[_MyModel], href.url)
+    assert href == parse_href(_MyModel, href.url)
 
 
 @given(key=st.integers(), purr_frequency=st.floats())
@@ -77,7 +78,7 @@ def test_derived_model_inherits_referrable_properties(key, purr_frequency) -> No
         purr_frequency: float
 
     cat = _Cat(id=key, purr_frequency=purr_frequency)
-    href = pydantic.parse_obj_as(Href[_Cat], cat)
+    href = parse_href(_Cat, cat)
     assert href.key == key
     assert href.url == _Cat.key_to_url(key)
-    assert href == pydantic.parse_obj_as(Href[_Cat], href.url)
+    assert href == parse_href(_Cat, href.url)

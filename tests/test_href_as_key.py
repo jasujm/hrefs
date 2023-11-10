@@ -3,12 +3,12 @@
 # pylint: disable=duplicate-code
 
 from hypothesis import given, strategies as st
-import pydantic
 import pytest
 from typing_extensions import Annotated
 
 from hrefs import Href, BaseReferrableModel, PrimaryKey, ReferrableModelError
 from hrefs._util import parse_url
+from _util import parse_href
 
 pytestmark = pytest.mark.usefixtures("href_resolver")
 
@@ -111,14 +111,14 @@ def test_self_href_from_url(url):
 @given(book_id=st.from_type(Href[Book]))
 def test_parse_href_key_from_referred_model(book_id):
     book = Book(self=book_id)
-    href = pydantic.parse_obj_as(Href[BookCover], book)
+    href = parse_href(BookCover, book)
     assert href.key == book.self
     assert href.url == BookCover.key_to_url(book.self)
 
 
 @given(book_id=st.integers())
 def test_parse_href_key_from_referred_key(book_id):
-    href = pydantic.parse_obj_as(Href[BookCover], book_id)
+    href = parse_href(BookCover, book_id)
     key = Href(key=book_id, url=Book.key_to_url(book_id))
     assert href.key == key
     assert href.url == BookCover.key_to_url(key)
@@ -126,7 +126,7 @@ def test_parse_href_key_from_referred_key(book_id):
 
 @given(url=st.from_regex(r"\Ahttp://example\.com/books/[0-9]+/cover\Z"))
 def test_parse_href_key_from_referred_url(url):
-    href = pydantic.parse_obj_as(Href[BookCover], url)
+    href = parse_href(BookCover, url)
     assert href.key == BookCover.url_to_key(url)
     assert href.url == parse_url(url)
 
@@ -134,14 +134,14 @@ def test_parse_href_key_from_referred_url(url):
 @given(book_id=st.from_type(Href[Book]), page_number=st.integers())
 def test_parse_composite_href_key_from_referred_model(book_id, page_number):
     book = Book(self=book_id)
-    href = pydantic.parse_obj_as(Href[Page], (book, page_number))
+    href = parse_href(Page, (book, page_number))
     assert href.key == (book.self, page_number)
     assert href.url == Page.key_to_url((book.self, page_number))
 
 
 @given(book_id=st.integers(), page_number=st.integers())
 def test_parse_composite_href_key_from_referred_key(book_id, page_number):
-    href = pydantic.parse_obj_as(Href[Page], (book_id, page_number))
+    href = parse_href(Page, (book_id, page_number))
     key = (Href(key=book_id, url=Book.key_to_url(book_id)), page_number)
     assert href.key == key
     assert href.url == Page.key_to_url(key)
@@ -149,7 +149,7 @@ def test_parse_composite_href_key_from_referred_key(book_id, page_number):
 
 @given(url=st.from_regex(r"\Ahttp://example\.com/books/[0-9]+/pages/[0-9]+\Z"))
 def test_parse_composite_href_key_from_referred_url(url):
-    href = pydantic.parse_obj_as(Href[Page], url)
+    href = parse_href(Page, url)
     assert href.key == Page.url_to_key(url)
     assert href.url == parse_url(url)
 
@@ -161,14 +161,14 @@ def test_parse_composite_href_key_from_referred_url(url):
 @given(book_id=st.from_type(Href[Book]), page_number=st.integers())
 def test_parse_indirect_href_key_from_referred_model(book_id, page_number):
     page = Page(book=book_id, page_number=page_number)
-    href = pydantic.parse_obj_as(Href[Bookmark], page)
-    assert href.key == pydantic.parse_obj_as(Href[Page], (page.book, page_number))
+    href = parse_href(Bookmark, page)
+    assert href.key == parse_href(Page, (page.book, page_number))
     assert href.url == Bookmark.key_to_url((page.book.key, page_number))
 
 
 @given(book_id=st.integers(), page_number=st.integers())
 def test_parse_indirect_href_key_from_referred_key(book_id, page_number):
-    href = pydantic.parse_obj_as(Href[Bookmark], (book_id, page_number))
+    href = parse_href(Bookmark, (book_id, page_number))
     page_key = (Href(key=book_id, url=Book.key_to_url(book_id)), page_number)
     key = Href(key=page_key, url=Page.key_to_url((book_id, page_number)))
     assert href.key == key
@@ -177,7 +177,7 @@ def test_parse_indirect_href_key_from_referred_key(book_id, page_number):
 
 @given(url=st.from_regex(r"\Ahttp://example\.com/books/[0-9]+/pages/[0-9]+/bookmark\Z"))
 def test_parse_indirect_href_key_from_referred_url(url):
-    href = pydantic.parse_obj_as(Href[Bookmark], url)
+    href = parse_href(Bookmark, url)
     assert href.key == Bookmark.url_to_key(url)
     assert href.url == parse_url(url)
 
