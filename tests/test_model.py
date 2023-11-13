@@ -6,6 +6,7 @@ import pytest
 from typing_extensions import Annotated
 
 from hrefs import BaseReferrableModel, PrimaryKey, Href, ReferrableModelError
+from hrefs._util import is_pydantic_2
 from _util import parse_href
 
 pytestmark = pytest.mark.usefixtures("href_resolver")
@@ -50,11 +51,17 @@ def test_multiple_primary_key_annotations_fails() -> None:
 
 @given(st.integers())
 def test_href_forward_reference(id) -> None:
+    validator_decorator = (
+        pydantic.model_validator(mode="before")
+        if is_pydantic_2()
+        else pydantic.root_validator(pre=True, allow_reuse=True)
+    )
+
     class _MyModel(BaseReferrableModel):
         id: int
         self: Href["_MyModel"]
 
-        @pydantic.root_validator(pre=True, allow_reuse=True)
+        @validator_decorator
         def _populate_self(cls, values):  # pylint: disable=no-self-argument
             values["self"] = values["id"]
             return values
