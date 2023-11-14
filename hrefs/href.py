@@ -126,21 +126,7 @@ class Referrable(typing.Generic[KeyType, UrlType], metaclass=abc.ABCMeta):
     if not is_pydantic_2():
 
         @classmethod
-        def __modify_href_schema__(
-            cls,
-            schema: typing.MutableMapping[str, typing.Any],
-            field: "pydantic.fields.ModelField",
-        ):
-            """Modify schema of :class:`Href` to this type
-
-            The default implementation reads the return type annotation of
-            :meth:`key_to_url()`, and uses its schema as ``Href`` schema.
-
-            Arguments:
-                schema: the schema being modified
-                field: the ``pydantic`` ``ModelField`` object of the ``Href``
-            """
-            del field  # unused
+        def __modify_href_schema__(cls, schema: typing.MutableMapping[str, typing.Any]):
             annotation = _get_return_annotation(cls.key_to_url)
             schema_model: typing.Type[pydantic.BaseModel] = pydantic.create_model(
                 "schema_model", __root__=(annotation, ...)
@@ -278,7 +264,7 @@ class Href(typing.Generic[ReferrableType]):
         ):
             if field and field.sub_fields:
                 referred: typing.Type[ReferrableType] = field.sub_fields[0].type_
-                referred.__modify_href_schema__(schema, field)
+                referred.__modify_href_schema__(schema)
 
     @classmethod
     def _from_key(cls, key: KeyType, model_type: typing.Type[ReferrableType]):
