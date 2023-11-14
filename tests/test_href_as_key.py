@@ -7,7 +7,7 @@ import pytest
 from typing_extensions import Annotated
 
 from hrefs import Href, BaseReferrableModel, PrimaryKey, ReferrableModelError
-from hrefs._util import parse_url
+from hrefs._util import parse_url, is_pydantic_2
 from _util import parse_href
 
 pytestmark = pytest.mark.usefixtures("href_resolver")
@@ -93,7 +93,8 @@ class Bookmark(BaseReferrableModel):
         return cls.params_to_key(path_params)
 
 
-Book.update_forward_refs()
+if not is_pydantic_2():
+    Book.update_forward_refs()
 
 
 @given(key=st.integers())
