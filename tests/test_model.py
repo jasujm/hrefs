@@ -66,7 +66,8 @@ def test_href_forward_reference(id) -> None:
             values["self"] = values["id"]
             return values
 
-    _MyModel.update_forward_refs()
+    if not is_pydantic_2():
+        _MyModel.update_forward_refs()
 
     model = _MyModel(id=id)
     href = parse_href(_MyModel, model)

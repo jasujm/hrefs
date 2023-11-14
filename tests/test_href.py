@@ -10,6 +10,7 @@ import pydantic
 import pytest
 
 from hrefs import Href, Referrable
+from hrefs._util import is_pydantic_2
 from _util import parse_obj, parse_href
 
 
@@ -82,7 +83,9 @@ def test_parse_href_without_parameter_fails():
 
 @given(st.builds(Owner))
 def test_json_encode(owner):
-    owner_json = json.loads(owner.json())
+    owner_json = json.loads(
+        owner.model_dump_json() if is_pydantic_2() else owner.json()
+    )
     assert owner_json["pets"] == [pet.url for pet in owner.pets]
 
 
@@ -91,7 +94,7 @@ def test_json_encode(owner):
     reason="pydantic does not support field argument in __modify_schema__",
 )
 def test_href_schema() -> None:
-    owner_schema = Owner.schema()
+    owner_schema = Owner.model_json_schema() if is_pydantic_2() else Owner.schema()
     assert owner_schema["properties"]["pets"] == {
         "title": "Pets",
         "type": "array",
