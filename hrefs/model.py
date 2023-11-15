@@ -193,7 +193,7 @@ class _ReferrableModelKeyInfo(typing.NamedTuple):
     field_name: str
 
 
-if is_pydantic_2():
+if typing.TYPE_CHECKING or is_pydantic_2():
     from pydantic._internal._model_construction import ModelMetaclass as _ModelMetaclass
 else:
     from pydantic.main import (  # pylint: disable=no-name-in-module
