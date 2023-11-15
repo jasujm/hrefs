@@ -8,6 +8,13 @@ application in various ways to exercise the ``hrefs`` library.
 This is slow, so only ran if ``--slow`` option is given to ``pytest``.
 """
 
+# pylint: disable=wrong-import-order
+
+import warnings
+
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="fastapi")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="pydantic_core")
+
 import itertools
 
 from fastapi.testclient import TestClient
