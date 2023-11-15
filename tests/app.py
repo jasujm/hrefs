@@ -11,14 +11,19 @@ libraries in a more persistent format!
 
 from typing import Dict, List
 import uuid
+import warnings
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware import Middleware
+import pydantic
 from pydantic import parse_obj_as
 from typing_extensions import Annotated
 
 from hrefs import Href, PrimaryKey, BaseReferrableModel
 from hrefs.starlette import HrefMiddleware
+
+if int(pydantic.__version__.split(".", 1)[0]) >= 2:
+    warnings.simplefilter("ignore", category=pydantic.PydanticDeprecatedSince20)
 
 
 class _BookBase(BaseReferrableModel):
