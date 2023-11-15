@@ -17,7 +17,13 @@ from starlette.testclient import TestClient
 from starlette.websockets import WebSocket
 from typing_extensions import Annotated
 
-from hrefs import BaseReferrableModel, Href, PrimaryKey, ReferrableModelError
+from hrefs import (
+    BaseReferrableModel,
+    Href,
+    PrimaryKey,
+    ReferrableModelError,
+    HrefsConfigDict,
+)
 from hrefs.starlette import HrefMiddleware, href_context
 from hrefs._util import parse_url, is_pydantic_2
 from _util import parse_obj, parse_href
@@ -31,8 +37,13 @@ class Quest(BaseReferrableModel):
 
     id: uuid.UUID
 
-    class Config:
-        details_view = "get_quest"
+    if is_pydantic_2():
+        model_config = HrefsConfigDict(details_view="get_quest")
+
+    else:
+
+        class Config:
+            details_view = "get_quest"
 
 
 class Reward(BaseReferrableModel):
@@ -42,8 +53,13 @@ class Reward(BaseReferrableModel):
 
     quest: Annotated[Href[Quest], PrimaryKey]
 
-    class Config:
-        details_view = "get_reward"
+    if is_pydantic_2():
+        model_config = HrefsConfigDict(details_view="get_reward")
+
+    else:
+
+        class Config:
+            details_view = "get_reward"
 
 
 class Hero(BaseReferrableModel):
@@ -53,8 +69,13 @@ class Hero(BaseReferrableModel):
 
     self: Annotated[Href["Hero"], PrimaryKey(name="id", type_=uuid.UUID)]
 
-    class Config:
-        details_view = "get_hero"
+    if is_pydantic_2():
+        model_config = HrefsConfigDict(details_view="get_hero")
+
+    else:
+
+        class Config:
+            details_view = "get_hero"
 
 
 if not is_pydantic_2():
@@ -69,8 +90,13 @@ class JournalEntry(BaseReferrableModel):
     hero: Annotated[Href[Hero], PrimaryKey]
     entry: Annotated[int, PrimaryKey]
 
-    class Config:
-        details_view = "heroes:get_journal"
+    if is_pydantic_2():
+        model_config = HrefsConfigDict(details_view="heroes:get_journal")
+
+    else:
+
+        class Config:
+            details_view = "heroes:get_journal"
 
 
 class Familiar(BaseReferrableModel):
@@ -82,8 +108,13 @@ class Familiar(BaseReferrableModel):
     hero: Annotated[Href[Hero], PrimaryKey]
     name: Annotated[str, PrimaryKey]
 
-    class Config:
-        details_view = "heroes:get_familiar"
+    if is_pydantic_2():
+        model_config = HrefsConfigDict(details_view="heroes:get_familiar")
+
+    else:
+
+        class Config:
+            details_view = "heroes:get_familiar"
 
 
 def _dummy_endpoint(_request):  # pragma: no cover
@@ -401,8 +432,13 @@ class TestParsing:  # pylint: disable=too-many-public-methods
         class _FaultyModel(BaseReferrableModel):
             id: uuid.UUID
 
-            class Config:
-                details_view = "does_not_exist"
+            if is_pydantic_2():
+                model_config = HrefsConfigDict(details_view="does_not_exist")
+
+            else:
+
+                class Config:
+                    details_view = "does_not_exist"
 
         with pytest.raises(ReferrableModelError):
             parse_href(_FaultyModel, uuid.uuid4())
@@ -411,8 +447,13 @@ class TestParsing:  # pylint: disable=too-many-public-methods
         class _FaultyModel(BaseReferrableModel):
             id: uuid.UUID
 
-            class Config:
-                details_view = "complex_route"
+            if is_pydantic_2():
+                model_config = HrefsConfigDict(details_view="complex_route")
+
+            else:
+
+                class Config:
+                    details_view = "complex_route"
 
         with pytest.raises(ReferrableModelError):
             parse_href(_FaultyModel, uuid.uuid4())
