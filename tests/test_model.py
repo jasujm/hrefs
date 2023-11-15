@@ -61,7 +61,7 @@ def test_href_forward_reference(id) -> None:
         id: int
         self: Href["_MyModel"]
 
-        @validator_decorator
+        @validator_decorator  # type: ignore
         def _populate_self(cls, values):  # pylint: disable=no-self-argument
             values["self"] = values["id"]
             return values

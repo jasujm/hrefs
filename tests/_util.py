@@ -23,4 +23,5 @@ else:
 
 def parse_href(referrable_type: typing.Type[Referrable], value: typing.Any):
     """Parse ``value`` as hyperlink to ``referrable_type``"""
-    return parse_obj(Href[referrable_type], value)
+    href_type = Href[referrable_type]  # type: ignore
+    return parse_obj(href_type, value)

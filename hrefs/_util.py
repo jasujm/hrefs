@@ -69,10 +69,12 @@ if is_pydantic_2():
 
     def get_model_config(model_cls: typing.Type[pydantic.BaseModel], config: str):
         """Get model config, or ``None`` if ``config`` does not exist"""
+        assert hasattr(model_cls, "model_config")
         return model_cls.model_config.get(config)
 
 else:
 
     def get_model_config(model_cls: typing.Type[pydantic.BaseModel], config: str):
         """Get model config, or ``None`` if ``config`` does not exist"""
+        assert hasattr(model_cls, "__config__")
         return getattr(model_cls.__config__, config, None)

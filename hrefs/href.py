@@ -7,20 +7,17 @@ import typing
 import warnings
 
 import pydantic
-from pydantic_core import core_schema
 
 from ._util import is_pydantic_2
 
 if is_pydantic_2():
     import pydantic_core
+    from pydantic_core import core_schema
+
 
 T = typing.TypeVar("T")
 KeyType = typing.TypeVar("KeyType")  # pylint: disable=invalid-name
 UrlType = typing.TypeVar("UrlType")  # pylint: disable=invalid-name
-
-
-if typing.TYPE_CHECKING:  # pragma: no cover
-    import pydantic.fields
 
 
 def _get_return_annotation(meth: typing.Callable) -> typing.Type:
@@ -249,10 +246,10 @@ class Href(typing.Generic[ReferrableType]):
     else:
 
         @classmethod
-        def _validate_model(cls, value, field: "pydantic.fields.ModelField"):
+        def _validate_model(cls, value, field):
             if not field.sub_fields:
                 raise TypeError("Expected sub field")
-            referrable_type: typing.Type[ReferrableType] = field.sub_fields[0].type_
+            referrable_type = field.sub_fields[0].type_
             return cls._validate(value, referrable_type)
 
         @classmethod
@@ -262,7 +259,7 @@ class Href(typing.Generic[ReferrableType]):
         @staticmethod
         def __modify_schema__(
             schema: typing.MutableMapping[str, typing.Any],
-            field: typing.Optional["pydantic.fields.ModelField"] = None,
+            field=None,
         ):
             if field and field.sub_fields:
                 referred: typing.Type[ReferrableType] = field.sub_fields[0].type_
