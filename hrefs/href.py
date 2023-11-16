@@ -218,7 +218,9 @@ class Href(typing.Generic[ReferrableType]):
         def __get_pydantic_core_schema__(
             cls, source_type: typing.Any, handler: pydantic.GetCoreSchemaHandler
         ):
-            if not (source_type is cls or typing.get_origin(source_type) is cls):
+            if not (
+                source_type is cls or typing.get_origin(source_type) is cls
+            ):  # pragma: no cover
                 raise TypeError("Expected `source_type` to be `Href`")
             args = typing.get_args(source_type)
             if len(args) != 1:
