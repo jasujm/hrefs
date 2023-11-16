@@ -2,6 +2,7 @@ Unreleased
 ----------
 
 Added
+ * Support Python 3.12
  * Experimental support for ``pydantic`` v2
 
 Changed
