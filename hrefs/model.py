@@ -538,8 +538,18 @@ class BaseReferrableModel(
             cls._key_map[key_name] = target_key_name
 
 
-class HrefsConfigDict(pydantic.ConfigDict):
-    """Typed dict that extends ``pydantiuc.ConfigDict`` with configurations used for :class:`BaseReferrableModel`"""
+if typing.TYPE_CHECKING or is_pydantic_2():
 
-    details_view: str
-    """Name of a view used by web framework integration"""
+    class HrefsConfigDict(pydantic.ConfigDict):
+        """Typed dict that extends ``pydantiuc.ConfigDict`` with configurations used for :class:`BaseReferrableModel`"""
+
+        details_view: str
+        """Name of a view used by web framework integration"""
+
+else:
+
+    class HrefsConfigDict(typing.TypedDict):
+        """Typed dict that extends ``pydantiuc.ConfigDict`` with configurations used for :class:`BaseReferrableModel`"""
+
+        details_view: str
+        """Name of a view used by web framework integration"""

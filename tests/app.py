@@ -22,7 +22,7 @@ from typing_extensions import Annotated
 from hrefs import Href, PrimaryKey, BaseReferrableModel
 from hrefs.starlette import HrefMiddleware
 
-if int(pydantic.__version__.split(".", 1)[0]) >= 2:
+if int(getattr(pydantic, "__version__", "1").split(".", 1)[0]) >= 2:
     warnings.simplefilter("ignore", category=pydantic.PydanticDeprecatedSince20)
 
 
