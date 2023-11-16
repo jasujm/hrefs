@@ -50,6 +50,11 @@ def test_parse_href(href):
     assert parse_href(Pet, href) is href
 
 
+@given(st.from_type(Href[Pet]))
+def test_repr(href):
+    assert eval(repr(href)) == href  # pylint: disable=eval-used
+
+
 @given(st.builds(Pet))
 def test_parse_referrable_model(pet):
     href = parse_href(Pet, pet)
