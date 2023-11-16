@@ -170,6 +170,12 @@ key. Expanding the idea in :ref:`href_as_key`, we can have:
    def get_book(id: int) -> Book:
        ...
 
+.. note::
+
+   In pydantic v2 postponed annotations are fully supported, and
+   ``Model.update_forward_refs()`` is unnecessary. In fact, `the method is
+   deprecated <https://docs.pydantic.dev/latest/migration/>`_.
+
 Note the need to use forward reference ``"Book"`` inside the body of the class,
 and update the forward references afterward. That is because the name ``Book``
 is not yet available in the class body. Also the ``PrimaryKey`` annotation now
@@ -226,13 +232,6 @@ hyperlink. A recipe to achieve that is:
    @app.get("/books/{id}")
    def get_book(id: int) -> Book:
        ...
-
-.. note::
-
-   You may need to add ``allow_reuse=True`` as an argument to
-   ``@root_validator`` to make the above code work. There is an `open issue
-   <https://github.com/jasujm/hrefs/issues/8>`_ to investigate why and if it's
-   really needed.
 
 In the above example, ``id`` will become the primary key by the virtue of being
 called ``id``. In the example above, ``self`` is just a regular field that

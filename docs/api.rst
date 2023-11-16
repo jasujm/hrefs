@@ -3,6 +3,11 @@
 API reference
 =============
 
+This API reference is intended mainly for developers and people looking for
+in-depth description of the different classes and functions. If you simply want
+to configure models and parse values into hyperlinks, :ref:`quickstart` gives a
+better introduction to using the library.
+
 .. module:: hrefs
 
 Fundamentals
@@ -32,6 +37,9 @@ hyperlinks should implement :class:`BaseReferrableModel`. It inherits both
    :members:
 
 .. autoclass:: PrimaryKey
+
+.. autoclass:: HrefsConfigDict
+   :members:
 
 Starlette integration
 ---------------------

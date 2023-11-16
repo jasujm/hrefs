@@ -352,7 +352,7 @@ class BaseReferrableModel(
 
     While the model class knows how to extract key types from annotations, it
     doesn't know how to convert between keys and URLs.  For that, it needs to
-    use a :class:`HrefResolver` provided by the web framework integration.
+    use a :class:`model.HrefResolver` provided by the web framework integration.
 
     Subclassing or initializing instances of a subclass raises
     :exc:`hrefs.ReferrableModelError` in case the library detects the model is

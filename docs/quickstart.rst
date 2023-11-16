@@ -59,6 +59,12 @@ To make a model target for hyperlinks, it needs to:
   representation of the model. The URLs will be built by reversing that route,
   using the model primary key as parameter.
 
+.. note::
+
+   Pydantic v2 deprecates config classes and uses config dicts as the new
+   configuration mechanism. See :ref:`pydantic_v2` for more information how this
+   affects ``hrefs``.
+
 In the above example ``Book.id`` is the primary key. The primary key usually
 corresponds to a database primary key, but it's by no means a requirement. By
 default, the primary key is the ``id`` field but can be configured. See
@@ -117,7 +123,7 @@ Defining a relationship to the referrable model
        libraries[library.id] = library
        return Response(
            status_code=201,
-           headers={"Location": parse_obj_as(Href[Library], library).url},
+           headers={"Location": str(parse_obj_as(Href[Library], library).url)},
        )
 
 The annotated type ``Href[Book]`` is used to declare a hyperlink to ``Book``.
@@ -135,7 +141,7 @@ following values can automatically be converted to hyperlinks:
 * A URL that can be matched to the route named in the ``details_view`` of the
   referred object type (in this case ``"get_library"``).
 
-When ``pydantic`` serializes :class:`hrefs.Href` objects to JSON, they are
+When pydantic serializes :class:`hrefs.Href` objects to JSON, they are
 serialized as URLs.
 
 .. doctest::
@@ -213,6 +219,37 @@ library knows how to parse either!
        "self": "http://localhost:8000/libraries/50c224ff-c9f4-4186-8a05-4999f522ea67"
    }
 
+.. _pydantic_v2:
+
+Using ``hrefs`` with pydantic v2
+--------------------------------
+
+Pydantic v2 introduces `numerous backward incompatible changes
+<https://docs.pydantic.dev/latest/migration/>`_ and deprecates many classes and
+functions used in v1. Unless otherwise mentioned, this guide uses v1 style, but
+it is straightforward to use the corresponding v2 classes and functions.
+
+One notable change in pydantic v2 is using `model config
+<https://docs.pydantic.dev/latest/api/config/>`_ instead of config
+classes. Using v2 style, the definition of ``Book`` from the
+:ref:`starlette_models` section becomes:
+
+.. code-block:: python
+
+   from hrefs import BaseReferrableModel, HrefsConfigDict
+
+   class Book(BaseReferrableModel):
+       model_config = HrefsConfigDict(details_view="get_book")
+
+       id: int
+       title: str
+
+Note that we use :class:`hrefs.HrefsConfigDict` instead of
+``pydantic.ConfigDict``. The former is a subtype of the latter that includes
+``details_view``. Using it ensures that auto-completion and type checking tools
+work as intended. If you don't care about type based tooling, using
+``pydantic.ConfigDict`` or native ``dict`` is just as good.
+
 Using ``hrefs`` with Starlette
 ------------------------------
 
@@ -228,7 +265,8 @@ containing hrefs. You just need to ensure that:
 * :class:`hrefs.starlette.HrefMiddleware` is added to the middleware stack.
 
 * In the responses, the pydantic models containing references are explicitly
-  serialized using the ``model.json()`` method.
+  serialized using the ``model.json()`` method (or ``model.model_dump_json()``
+  in pydantic v2).
 
 Writing a custom integration
 ----------------------------
@@ -238,8 +276,8 @@ be integrated to work with other web frameworks too.
 
 The :class:`hrefs.Href` class can refer to any type implementing the
 :class:`hrefs.Referrable` abstract base class. If you plan to take advantage of
-``pydantic`` type annotations and want metaclass magic to take care of most of
-the heavy lifting, :class:`hrefs.BaseReferrableModel` is the best starting point.
+pydantic type annotations and want metaclass magic to take care of most of the
+heavy lifting, :class:`hrefs.BaseReferrableModel` is the best starting point.
 
 See :ref:`custom_web_framework_api` for the API that new web framework
 integrations need to implement.
