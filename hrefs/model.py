@@ -196,16 +196,21 @@ class _ReferrableModelKeyInfo(typing.NamedTuple):
 if is_pydantic_2():
     from pydantic._internal._model_construction import ModelMetaclass as _ModelMetaclass
 else:
-    from pydantic.main import ModelMetaclass as _ModelMetaclass
+    from pydantic.main import (  # pylint: disable=no-name-in-module
+        ModelMetaclass as _ModelMetaclass,
+    )
 
 
 class _ReferrableModelMeta(_ModelMetaclass):
-    def __new__(cls, name, bases, namespace, **kwargs):
+    def __new__(cls, name, bases, namespace, *args, **kwargs):
         if is_pydantic_2():
             annotations = namespace.get("__annotations__", {})
         else:
-            annotations = pydantic.typing.resolve_annotations(
-                namespace.get("__annotations__", {}), namespace.get("__module__", None)
+            annotations = (
+                pydantic.typing.resolve_annotations(  # pylint: disable=no-member
+                    namespace.get("__annotations__", {}),
+                    namespace.get("__module__", None),
+                )
             )
         key_names, key_infos = cls._create_key_names_and_types(name, annotations)
         assert len(key_names) == len(key_infos)
@@ -228,7 +233,7 @@ class _ReferrableModelMeta(_ModelMetaclass):
             namespace["_get_key"] = get_key
             namespace["_key_map"] = {}
 
-        return super().__new__(cls, name, bases, namespace, **kwargs)
+        return super().__new__(cls, name, bases, namespace, *args, **kwargs)
 
     def __init__(cls, *args, **kwargs):
         super().__init__(*args, **kwargs)

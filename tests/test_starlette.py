@@ -17,6 +17,7 @@ from starlette.testclient import TestClient
 from starlette.websockets import WebSocket
 from typing_extensions import Annotated
 
+from _util import parse_obj, parse_href
 from hrefs import (
     BaseReferrableModel,
     Href,
@@ -26,7 +27,6 @@ from hrefs import (
 )
 from hrefs.starlette import HrefMiddleware, href_context
 from hrefs._util import parse_url, is_pydantic_2
-from _util import parse_obj, parse_href
 
 
 class Quest(BaseReferrableModel):

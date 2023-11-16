@@ -5,9 +5,9 @@ import pydantic
 import pytest
 from typing_extensions import Annotated
 
+from _util import parse_href
 from hrefs import BaseReferrableModel, PrimaryKey, Href, ReferrableModelError
 from hrefs._util import is_pydantic_2
-from _util import parse_href
 
 pytestmark = pytest.mark.usefixtures("href_resolver")
 
