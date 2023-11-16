@@ -171,20 +171,18 @@ def href_context(
 ) -> typing.ContextManager[_StarletteHrefResolver]:
     """Context manager that sets hyperlink context
 
-    Makes ``request_or_app`` responsible for converting between keys and URLs in
-    hyperlinks to :class:`BaseReferrableModel`.  The context can be either of
-    the following:
+    Makes ``request_or_app`` convert between keys and URLs in hyperlinks to
+    :class:`BaseReferrableModel`.  The context can be either of the following:
 
     * A :class:`starlette.requests.HTTPConnection` instance -- that is a HTTP
       request or websocket
 
-    * A :class:`starlette.applications.Starlette` instance. Note that
+    * A :class:`starlette.applications.Starlette` instance.  Note that
       ``base_url`` needs to be provided when using application to convert the URL
       path to absolute URL.
 
     :func:`href_context()` is used as a context manager that automatically
-    clears the context when exiting.  The contexts stack so you can even use
-    nested contexts if you're feeling adventurous.
+    clears the context when exiting.
 
     .. code-block:: python
 
@@ -206,8 +204,8 @@ def href_context(
         :class:`HrefMiddleware` to automatically set the context.
 
     Arguments:
-        request_or_app: The request or app to be used as hyperlink context
-        base_url: The base URL (needed when using application as context)
+      request_or_app: The request or app to be used as hyperlink
+      context base_url: The base URL (needed when using application as context)
     """
     return resolve_hrefs(_StarletteHrefResolver(request_or_app, base_url))
 
