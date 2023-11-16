@@ -9,9 +9,9 @@ from hypothesis import given, strategies as st, assume
 import pydantic
 import pytest
 
+from _util import parse_obj, parse_href
 from hrefs import Href, Referrable
 from hrefs._util import is_pydantic_2
-from _util import parse_obj, parse_href
 
 
 def _pydantic_does_not_support_field_in_modify_schema():

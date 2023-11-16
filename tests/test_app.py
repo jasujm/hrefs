@@ -8,7 +8,7 @@ application in various ways to exercise the ``hrefs`` library.
 This is slow, so only ran if ``--slow`` option is given to ``pytest``.
 """
 
-# pylint: disable=wrong-import-order
+# pylint: disable=wrong-import-order, wrong-import-position
 
 import warnings
 

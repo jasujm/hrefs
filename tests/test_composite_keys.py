@@ -6,9 +6,9 @@ from hypothesis import given, strategies as st
 import pytest
 from typing_extensions import Annotated
 
-from hrefs import Href, BaseReferrableModel, PrimaryKey
-from hrefs._util import parse_url
 from _util import parse_href
+from hrefs import BaseReferrableModel, PrimaryKey
+from hrefs._util import parse_url
 
 pytestmark = pytest.mark.usefixtures("href_resolver")
 

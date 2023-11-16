@@ -1,8 +1,8 @@
 """Testing utilities"""
 
-import pydantic
-
 import typing
+
+import pydantic
 
 from hrefs import Referrable, Href
 from hrefs._util import is_pydantic_2
