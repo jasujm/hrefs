@@ -6,18 +6,17 @@ Added
  * Experimental support for ``pydantic`` v2
 
 Changed
- * Failing to parse ``Href`` uses ``ValueError`` instead of ``TypeError``,
-   because the latter is no longer considered a validation error type in
+ * Failing to parse ``Href`` due to incompatible input type throws
+   ``ValueError`` instead of ``TypeError`` to remain compatible with
    ``pydantic`` v2
- * There are changes in the library behavior when using ``pydantic`` v2, including:
-     * Unparameterized ``Href`` causes error on model definition time, instead of
-       model validation time
- * Tests and documentation now refer ``pydantic`` v2 APIs as alternative,
+ * Tests and documentation now refer ``pydantic`` v2 APIs as an alternative,
    whenever the v1 API is deprecated
+ * Unparameterized ``Href`` causes error on model definition time, instead of
+   model validation time
 
 Deprecated
  * ``Href.__modify_href_schema__()`` and ``Href.validate()`` are only used by
-    pydantic v1, and no longer part of the public API
+   pydantic v1, and no longer part of the public API
 
 Fixed
  * Unwrapping of path parameters when the model key contains recursive hyperlinks
