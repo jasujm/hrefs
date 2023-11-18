@@ -1,5 +1,8 @@
-Unreleased
-----------
+Version 0.12
+------------
+
+Date
+  2023-11-18
 
 Added
  * Support Python 3.12
