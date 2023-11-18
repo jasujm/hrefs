@@ -222,7 +222,15 @@ class Href(typing.Generic[ReferrableType]):
             args = typing.get_args(source_type)
             if len(args) != 1:
                 raise TypeError("Expected `Href` to have parameter")
-            referrable_type: typing.Type[ReferrableType] = args[0]
+            referrable_type_or_forward_ref: typing.Union[
+                typing.Type[ReferrableType], typing.ForwardRef
+            ] = args[0]
+            if isinstance(referrable_type_or_forward_ref, typing.ForwardRef):
+                raise pydantic.PydanticUndefinedAnnotation(
+                    referrable_type_or_forward_ref.__forward_arg__,
+                    "Hyperlink target is forward reference",
+                )
+            referrable_type = referrable_type_or_forward_ref
             url_type = _get_return_annotation(referrable_type.key_to_url)
             url_schema = handler.generate_schema(url_type)
             return core_schema.no_info_plain_validator_function(

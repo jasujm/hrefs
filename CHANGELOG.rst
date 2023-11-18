@@ -1,3 +1,9 @@
+Unreleased
+----------
+
+Fixed
+ * Support forward references in hyperlinks in ``pydantic`` v2
+
 Version 0.12
 ------------
 

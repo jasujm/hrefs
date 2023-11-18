@@ -12,6 +12,22 @@ from hrefs._util import is_pydantic_2
 pytestmark = pytest.mark.usefixtures("href_resolver")
 
 
+class ModelWithForwardReference(pydantic.BaseModel):
+    """Model that uses hyperlink via forward reference"""
+
+    link: Href["ModelReferredViaForwardReference"]
+
+
+class ModelReferredViaForwardReference(BaseReferrableModel):
+    """Target of hyperlink via forward reference"""
+
+    id: int
+
+
+if not is_pydantic_2():
+    ModelWithForwardReference.update_forward_refs()
+
+
 def test_base_referrable_model_has_empty_key():
     href = parse_href(BaseReferrableModel, BaseReferrableModel())
     assert href.key == ()
@@ -50,7 +66,7 @@ def test_multiple_primary_key_annotations_fails() -> None:
 
 
 @given(st.integers())
-def test_href_forward_reference(id) -> None:
+def test_href_to_self(id) -> None:
     validator_decorator = (
         pydantic.model_validator(mode="before")
         if is_pydantic_2()
@@ -75,6 +91,13 @@ def test_href_forward_reference(id) -> None:
     assert href.key == id
     assert href.url == _MyModel.key_to_url(id)
     assert href == parse_href(_MyModel, href.url)
+
+
+@given(st.integers())
+def test_href_forward_reference(id) -> None:
+    assert ModelWithForwardReference(link=id).link == parse_href(
+        ModelReferredViaForwardReference, id
+    )
 
 
 @given(key=st.integers(), purr_frequency=st.floats())
