@@ -172,7 +172,7 @@ key. Expanding the idea in :ref:`href_as_key`, we can have:
 
 .. note::
 
-   In pydantic v2 postponed annotations are fully supported, and
+   Pydantic v2 supports postponed annotations, and
    ``Model.update_forward_refs()`` is unnecessary. In fact, `the method is
    deprecated <https://docs.pydantic.dev/latest/migration/>`_.
 
