@@ -113,3 +113,10 @@ def test_derived_model_inherits_referrable_properties(key, purr_frequency) -> No
     assert href.key == key
     assert href.url == _Cat.key_to_url(key)
     assert href == parse_href(_Cat, href.url)
+
+
+def test_simple_model_has_simple_key() -> None:
+    class _SimpleModel(BaseReferrableModel):
+        id: int
+
+    assert _SimpleModel.has_simple_key()

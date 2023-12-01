@@ -183,8 +183,8 @@ def test_parse_indirect_href_key_from_referred_url(url):
     assert href.url == parse_url(url)
 
 
-def test_deep_indirection_is_not_supported() -> None:
+def test_hyperlink_with_forward_reference_without_type_fails() -> None:
     with pytest.raises(ReferrableModelError):
 
-        class _SomeModelWithDeepIndirection(BaseReferrableModel):
-            bookmark: Annotated[Href[Bookmark], PrimaryKey]
+        class _InvalidModel(BaseReferrableModel):
+            self: Annotated[Href["_InvalidModel"], PrimaryKey]

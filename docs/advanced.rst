@@ -127,11 +127,9 @@ Modifying the example from the previous section we have:
        ...
 
 Note that the path parameter in the ``get_page`` route handler is called
-``book_id``, which is simply the hyperlink name ``book`` joined to ``id`` -- the
-model key of ``Book``. This is because FastAPI doesn't know how to convert
-to/from custom types like ``Href`` in path parameters. The key type is
-automatically unwrapped and renamed when it appears in route handler. In the
-model itself the name and type of ``book`` are preserved:
+``book_id``, which is the hyperlink name ``book`` joined to ``id`` -- the model
+key of ``Book``. The key is automatically unwrapped when it appears in route
+handler. In the model itself the name and type of ``book`` are preserved:
 
 .. doctest:: href_as_key
 
@@ -176,22 +174,20 @@ key. Expanding the idea in :ref:`href_as_key`, we can have:
    ``Model.update_forward_refs()`` is unnecessary. In fact, `the method is
    deprecated <https://docs.pydantic.dev/latest/migration/>`_.
 
-Note the need to use forward reference ``"Book"`` inside the body of the class,
-and update the forward references afterward. That is because the name ``Book``
-is not yet available in the class body. Also the ``PrimaryKey`` annotation now
-includes the ``type_`` argument to indicate that the underlying key type is
-``int``. Without that annotation, the library would have no way of knowing the
-underlying key of the model, since the definition of the primary key would be
-circular.
+Note the need to use forward reference ``"Book"`` inside the body of the
+class. That is because the name ``Book`` is not yet available in the class
+body. Also the ``PrimaryKey`` annotation now includes the ``type_`` argument to
+indicate that the underlying key type is ``int``. Without explicit type the
+primary key definition would be circular, and the library would have no way of
+knowing the actual key type.
 
-The key name in the route handler is again unwrapped -- and called ``id``
-instead of ``self``. This is because the ``name`` argument of the ``PrimaryKey``
-annotation was used to rename a key. It is not advisable to have ``self`` as an
-argument name in a route handler, because it creates ambiguity with the ``self``
-parameter Python uses in instance methods.
+The key name in the route handler is again unwrapped renamed to ``id``. The
+renaming is done with the ``name`` argument of the ``PrimaryKey``. It is not
+advisable to have ``self`` as an argument name in a route handler, because it
+creates ambiguity with the ``self`` parameter Python uses in instance methods.
 
-The unwrapping only applies to the route handler. In the model itself the name
-and type of ``self`` are preserved:
+The unwrapping and renaming applies to the route handler. In the model fields
+the name and type of ``self`` are preserved:
 
 .. doctest:: self_hrefs
 
@@ -233,20 +229,17 @@ hyperlink. A recipe to achieve that is:
    def get_book(id: int) -> Book:
        ...
 
-In the above example, ``id`` will become the primary key by the virtue of being
-called ``id``. In the example above, ``self`` is just a regular field that
-happens to be a hyperlink to the ``Book`` model itself. The
-``Book.populate_self()`` runs on the whole model before any other validation
-takes place, and takes care of populating the ``self`` field from ``id``.
+In the above example, ``id`` is the primary key by the virtue of being called
+``id``. ``self`` is just a regular field that happens to be a hyperlink to the
+``Book`` model itself. The ``Book.populate_self()`` validator runs on the whole
+model before any other validation takes place, and takes care of populating the
+``self`` field from ``id``.
 
 .. doctest:: id_and_self
 
    >>> book = Book(id=1)
    >>> book
    Book(id=1, self=Href(key=1, url=AnyHttpUrl(...'http://example.com/books/1'...)))
-
-The ``PrimaryKey`` annotation with type is no longer needed since there is
-nothing circular in the key type (compare this to :ref:`self_hrefs`).
 
 Inheritance
 -----------
@@ -283,7 +276,7 @@ The derived model ``Textbook`` inherits the key ``id`` and details view
    >>> parse_obj_as(Href[Textbook], textbook)
    Href(key=1, url=AnyHttpUrl(...'http://example.com/textbooks/1'...))
 
-Primary key annotations are not composable across inheritance, i.e. it is not
+Primary key annotations are not composable across inheritance. it is not
 possible to define a part of the model key in the parent and another part in the
 derived model. Model key definitions --- whether implicit or explicit --- should
 only exist in one class of the inheritance tree.

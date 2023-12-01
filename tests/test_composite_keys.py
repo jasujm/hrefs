@@ -40,3 +40,7 @@ def test_parse_composite_url_to_href(url):
     href = parse_href(Page, url)
     assert href.key == Page.url_to_key(url)
     assert href.url == parse_url(url)
+
+
+def test_model_with_composite_key_does_not_have_simple_key():
+    assert not Page.has_simple_key()

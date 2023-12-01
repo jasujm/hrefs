@@ -8,6 +8,8 @@ specific module.
 import abc
 import contextlib
 import contextvars
+from dataclasses import dataclass
+import functools
 import typing
 
 import pydantic
@@ -24,16 +26,79 @@ _DEFAULT_KEY = "id"
 def _unwrap_key(obj: typing.Any):
     while isinstance(obj, Href):
         obj = obj.key
-        if isinstance(obj, tuple):
-            obj = tuple(_unwrap_key(part) for part in obj)
+    if isinstance(obj, tuple):
+        return tuple(_unwrap_key(part) for part in obj)
     return obj
 
 
-def _getattr_and_maybe_unwrap_key(obj: typing.Any, name: str, unwrap_key: bool):
-    ret = getattr(obj, name)
+def _getattr_and_maybe_unwrap_key(obj: typing.Any, *, name: str, unwrap_key: bool):
+    # return _unwrap_key(getattr(obj, name))
+    obj = getattr(obj, name)
     if unwrap_key:
-        ret = _unwrap_key(ret)
-    return ret
+        obj = _unwrap_key(obj)
+    return obj
+
+
+@dataclass
+class _KeyPartSpec:
+    field_name: str
+    key_name: str
+    is_href_with_forward_reference: bool
+    key_parts_specs: typing.Optional[typing.Tuple["_KeyPartSpec", ...]]
+
+
+_KeySpecs = typing.Tuple[_KeyPartSpec, ...]
+
+
+def _convert_key_to_params(
+    key: typing.Union[typing.Any, typing.Tuple[typing.Any, ...]],
+    key_specs: _KeySpecs,
+    *,
+    prefix="",
+):
+    params = {}
+    if len(key_specs) == 1:
+        key = (key,)
+    for key_part, key_spec in zip(key, key_specs):
+        key_name = f"{prefix}{key_spec.key_name}"
+        if key_spec.key_parts_specs:
+            next_params = _convert_key_to_params(
+                key_part, key_spec.key_parts_specs, prefix=f"{key_name}_"
+            )
+            params.update(next_params)
+        else:
+            params[key_name] = key_part
+    return params
+
+
+def _convert_params_to_key(
+    params: typing.Mapping[str, typing.Any],
+    key_specs: _KeySpecs,
+    *,
+    cls: typing.Type[typing.Any],
+    prefix="",
+):
+    key_parts = []
+    for key_spec in key_specs:
+        key_name = f"{prefix}{key_spec.key_name}"
+        if key_spec.key_parts_specs:
+            next_key_part = _convert_params_to_key(
+                params,
+                key_spec.key_parts_specs,
+                cls=cls,
+                prefix=f"{key_name}_",
+            )
+            key_parts.append(next_key_part)
+        else:
+            try:
+                key_parts.append(params[key_name])
+            except KeyError as ex:
+                raise ValueError(
+                    f"Cannot convert parameters {params!r} to a hyperlink to {cls.__name__}. Missing: {key_name}"
+                ) from ex
+    if len(key_specs) == 1:
+        return key_parts[0]
+    return tuple(key_parts)
 
 
 class HrefResolver(typing_extensions.Protocol):
@@ -154,7 +219,7 @@ else:
 
 
 class PrimaryKey:
-    """Annotation declaring a field in :class:`BaseReferrableModel` as a primary key
+    """Declare a field in :class:`BaseReferrableModel` as the primary key
 
     ``PrimaryKey`` can be used the following way:
 
@@ -170,10 +235,10 @@ class PrimaryKey:
     See :ref:`configure_key` for more details.
 
     Arguments:
-        type_: The underlying key type if the annotated primary key is
-               itself a hyperlink. See :ref:`href_as_key`.
-        name: The name of the key. It may be distinct from the actual field
-              name, and will be used to match the key to path/query parameters
+        type_: The underlying key type. This parameter is only used when the key part
+               is a hyperlink whose target is a forward reference. See :ref:`href_as_key`.
+        name: The name of the key. This can be used to override the name of the key part
+              (that normally defaults to the field name).
     """
 
     __slots__ = ["type_", "name"]
@@ -185,12 +250,6 @@ class PrimaryKey:
     ):
         self.type_ = type_
         self.name = name
-
-
-class _ReferrableModelKeyInfo(typing.NamedTuple):
-    key_type: typing.Type
-    should_unwrap_key: bool
-    field_name: str
 
 
 if typing.TYPE_CHECKING or is_pydantic_2():
@@ -212,49 +271,47 @@ class _ReferrableModelMeta(_ModelMetaclass):
                     namespace.get("__module__", None),
                 )
             )
-        key_names, key_infos = cls._create_key_names_and_types(name, annotations)
-        assert len(key_names) == len(key_infos)
 
-        if key_infos or not cls._has_referrable_model_base(bases):
-            if len(key_infos) == 1:
-                (
-                    key_parser,
-                    get_key,
-                ) = cls._create_key_converters_single_type(key_infos[0])
+        key_parts_with_annotation_info = cls._get_key_info_from_annotations(
+            annotations, name=name
+        )
+        key_types_and_specs = [
+            cls._get_key_types_and_specs(
+                field_name, key_part_type, key_metadata, name=name
+            )
+            for (
+                field_name,
+                key_part_type,
+                key_metadata,
+            ) in key_parts_with_annotation_info
+        ]
 
+        if key_types_and_specs or not cls._has_referrable_model_base(bases):
+            if key_types_and_specs:
+                key_types, key_specs = [list(k) for k in zip(*key_types_and_specs)]
             else:
-                (
-                    key_parser,
-                    get_key,
-                ) = cls._create_key_converters_multiple_types(key_names, key_infos)
+                key_types, key_specs = [], []
 
-            namespace["_key_names"] = tuple(key_names)
+            key_parser = cls._get_key_parser_from_types(key_types, key_specs)
+            get_key = cls._get_key_getter_from_specs(key_specs, key_parser.get_type())
+
             namespace["_key_parser"] = key_parser
+            namespace["_key_specs"] = tuple(key_specs)
             namespace["_get_key"] = get_key
-            namespace["_key_map"] = {}
 
         return super().__new__(cls, name, bases, namespace, *args, **kwargs)
 
-    def __init__(cls, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        cls._calculate_key_map()
-
-    @classmethod
-    def _has_referrable_model_base(cls, bases):
-        return any(isinstance(base, cls) for base in bases)
-
     @staticmethod
-    def _create_key_names_and_types(
-        name: str, all_annotations: typing.Mapping[str, typing.Any]
+    def _get_key_info_from_annotations(
+        annotations: typing.Mapping[str, typing.Any], *, name: str
     ):
-        key_names: typing.List[str] = []
-        key_infos: typing.List[_ReferrableModelKeyInfo] = []
-        for field_name, annotation in all_annotations.items():
+        key_parts = []
+        for field_name, annotation in annotations.items():
             if typing_extensions.get_origin(annotation) is typing_extensions.Annotated:
-                annotations = typing_extensions.get_args(annotation)
+                annotation_args = typing_extensions.get_args(annotation)
                 key_annotations = [
                     key
-                    for key in annotations
+                    for key in annotation_args
                     if key is PrimaryKey or isinstance(key, PrimaryKey)
                 ]
                 n_key_annotations = len(key_annotations)
@@ -264,70 +321,95 @@ class _ReferrableModelMeta(_ModelMetaclass):
                         f" got {n_key_annotations}"
                     )
                 if n_key_annotations == 1:
-                    origin_type = annotations[0]
+                    field_type = annotation_args[0]
                     primary_key_annotation: PrimaryKey = key_annotations[0]
                     # convert class into default instance
                     if primary_key_annotation is PrimaryKey:
                         primary_key_annotation = PrimaryKey()
-                    type_from_annotation = primary_key_annotation.type_
-                    key_name_from_annotation = primary_key_annotation.name
-                    key_type = type_from_annotation or origin_type
-                    should_unwrap_key = (
-                        typing_extensions.get_origin(origin_type) is Href
-                        and type_from_annotation is not None
-                    )
-                    key_names.append(key_name_from_annotation or field_name)
-                    key_infos.append(
-                        _ReferrableModelKeyInfo(key_type, should_unwrap_key, field_name)
-                    )
-        if not key_names and _DEFAULT_KEY in all_annotations:
-            key_names.append(_DEFAULT_KEY)
-            key_infos.append(
-                _ReferrableModelKeyInfo(
-                    all_annotations[_DEFAULT_KEY], False, _DEFAULT_KEY
-                )
-            )
-        return key_names, key_infos
+                    key_parts.append((field_name, field_type, primary_key_annotation))
+        if not key_parts and _DEFAULT_KEY in annotations:
+            key_parts.append((_DEFAULT_KEY, annotations[_DEFAULT_KEY], PrimaryKey()))
+        return key_parts
 
-    @classmethod
-    def _create_key_converters_multiple_types(
-        cls,
-        key_names: typing.Iterable[str],
-        key_infos: typing.Iterable[_ReferrableModelKeyInfo],
+    @staticmethod
+    def _get_key_types_and_specs(
+        field_name: str,
+        key_part_type: typing.Type[typing.Any],
+        key_metadata: PrimaryKey,
+        *,
+        name: str,
     ):
-        key_type = typing.NamedTuple(  # type: ignore
-            "key",
-            [
-                (key_name, key_info.key_type)
-                for (key_name, key_info) in zip(key_names, key_infos)
-            ],
-        )
-        key_parser = TypeParser(key_type)
-
-        def get_key(self):
-            return key_parser.parse(
-                [
-                    _getattr_and_maybe_unwrap_key(
-                        self, key_info.field_name, key_info.should_unwrap_key
+        actual_key_part_type = key_part_type
+        key_name = key_metadata.name or field_name
+        key_parts_specs = None
+        is_href_with_forward_reference = False
+        key_part_type_origin = typing_extensions.get_origin(key_part_type)
+        if key_part_type_origin is Href:
+            (target_type,) = typing_extensions.get_args(key_part_type)
+            if isinstance(target_type, typing.ForwardRef):
+                if not key_metadata.type_:
+                    raise ReferrableModelError(
+                        f"{name}.{field_name} is hyperlink with forward reference (has type {key_part_type}). "
+                        "Setting type_ in primary key annotation required."
                     )
-                    for key_name, key_info in zip(key_names, key_infos)
-                ]
+                actual_key_part_type = key_metadata.type_
+                is_href_with_forward_reference = True
+            else:
+                key_parts_specs = (
+                    target_type._get_key_specs()  # pylint: disable=protected-access
+                )
+        return actual_key_part_type, _KeyPartSpec(
+            field_name=field_name,
+            key_name=key_name,
+            key_parts_specs=key_parts_specs,
+            is_href_with_forward_reference=is_href_with_forward_reference,
+        )
+
+    @staticmethod
+    def _get_key_parser_from_types(
+        types: typing.Sequence[typing.Type[typing.Any]],
+        key_specs: typing.Sequence[_KeyPartSpec],
+    ):
+        if len(types) == 1:
+            return TypeParser(types[0])
+        tuple_type = typing.NamedTuple(  # type: ignore
+            "key",
+            [(key_spec.key_name, type_) for (key_spec, type_) in zip(key_specs, types)],
+        )
+        return TypeParser(tuple_type)
+
+    @staticmethod
+    def _get_key_getter_from_specs(
+        key_specs: typing.Sequence[_KeyPartSpec], key_type: typing.Type[typing.Any]
+    ):
+        if len(key_specs) == 1:
+            getter = functools.partial(
+                _getattr_and_maybe_unwrap_key,
+                name=key_specs[0].field_name,
+                unwrap_key=key_specs[0].is_href_with_forward_reference,
             )
 
-        return key_parser, get_key
+            def get_key(self):
+                return getter(self)
+
+        else:
+            getters = [
+                functools.partial(
+                    _getattr_and_maybe_unwrap_key,
+                    name=key_spec.field_name,
+                    unwrap_key=key_spec.is_href_with_forward_reference,
+                )
+                for key_spec in key_specs
+            ]
+
+            def get_key(self):
+                return key_type(*(getter(self) for getter in getters))
+
+        return get_key
 
     @classmethod
-    def _create_key_converters_single_type(cls, key_info: _ReferrableModelKeyInfo):
-        key_parser = TypeParser(key_info.key_type)
-
-        def get_key(self):
-            return key_parser.parse(
-                _getattr_and_maybe_unwrap_key(
-                    self, key_info.field_name, key_info.should_unwrap_key
-                )
-            )
-
-        return key_parser, get_key
+    def _has_referrable_model_base(cls, bases):
+        return any(isinstance(base, cls) for base in bases)
 
 
 class BaseReferrableModel(
@@ -359,12 +441,9 @@ class BaseReferrableModel(
     incorrectly configured.
     """
 
+    _key_specs: typing.ClassVar[_KeySpecs]
     _key_parser: typing.ClassVar[TypeParser[typing.Any]]
-    _key_names: typing.ClassVar[typing.Tuple[str, ...]]
     _get_key: typing.ClassVar[typing.Callable[["BaseReferrableModel"], typing.Any]]
-    _key_map: typing.ClassVar[
-        typing.Dict[str, typing.Union[str, typing.Tuple[str, ...]]]
-    ]
 
     def get_key(self) -> typing.Any:
         """Return the model key
@@ -425,7 +504,7 @@ class BaseReferrableModel(
             ``True`` if the model has simple (single part) key, ``False``
             otherwise
         """
-        return len(cls._key_names) == 1
+        return len(cls._key_specs) == 1
 
     @classmethod
     def key_to_params(cls, key: typing.Any) -> typing.Dict[str, typing.Any]:
@@ -442,17 +521,7 @@ class BaseReferrableModel(
         Returns:
             A dictionary mapping key names to key parts
         """
-        if cls.has_simple_key():
-            key = (key,)
-        params = {}
-        for subkeys, subkey_names in zip(key, cls._key_map.values()):
-            subkeys = _unwrap_key(subkeys)
-            if isinstance(subkey_names, str):
-                params[subkey_names] = subkeys
-            else:
-                for subkey_name, subkey in zip(subkey_names, subkeys):
-                    params[subkey_name] = subkey
-        return params
+        return _convert_key_to_params(_unwrap_key(key), cls._key_specs)
 
     @classmethod
     def params_to_key(cls, params: typing.Mapping[str, typing.Any]) -> typing.Any:
@@ -471,71 +540,17 @@ class BaseReferrableModel(
            :exc:`ValueError`: if ``params`` does not contain sufficient elements
              to construct the key
         """
-        subkeys = []
-        try:
-            for subkey_names in cls._key_map.values():
-                if isinstance(subkey_names, str):
-                    subkey = params[subkey_names]
-                else:
-                    subkey = [params[subkey_name] for subkey_name in subkey_names]
-                subkeys.append(subkey)
-        except KeyError as ex:
-            missing_keys = set(cls._key_map.keys()) - set(params.keys())
-            raise ValueError(
-                f"Could not convert {params} to key of {cls.__name__}. "
-                f"Missing the following params: {', '.join(missing_keys)}"
-            ) from ex
-        if cls.has_simple_key():
-            subkeys = subkeys[0]
-        return cls._key_parser.parse(subkeys)
+        key_parts = _convert_params_to_key(params, cls._key_specs, cls=cls)
+        return cls._key_parser.parse(key_parts)
 
     @classmethod
     def update_forward_refs(cls, **localns: typing.Any) -> None:
         super().update_forward_refs(**localns)
         cls._key_parser.update_forward_refs(**localns)
-        cls._calculate_key_map()
 
     @classmethod
-    def _calculate_key_map(cls) -> None:
-        if not cls._key_names:
-            return
-
-        key_type = cls._key_parser.get_type()
-        key_types: typing.Dict[str, typing.Type]
-        if cls.has_simple_key():
-            key_name = cls._key_names[0]
-            key_types = {key_name: key_type}
-        else:
-            key_types = key_type.__annotations__
-
-        cls._key_map.clear()
-        for key_name, key_type in key_types.items():
-            target_key_name: typing.Union[str, typing.Tuple[str, ...]] = key_name
-            # If key part is `Href`, we examine the target and unwrap it
-            if typing_extensions.get_origin(key_type) is Href:
-                (target_type,) = typing_extensions.get_args(key_type)
-                target_type_key_map = getattr(target_type, "_key_map", None)
-                if target_type_key_map:
-                    target_type_key_names = target_type_key_map.values()
-                    # This would get complicated: if the target of `Href` also
-                    # has complex key that needs unwrapping (indirection two
-                    # levels deep), we don't do that. It would be possible if
-                    # calculating key map was properly recursive, though.
-                    if not all(isinstance(name, str) for name in target_type_key_names):
-                        raise ReferrableModelError(
-                            f"Model {cls.__name__} href key {key_name} has too many levels of indirection. "
-                            f"{target_type!r} has key map {target_type_key_map!r}"
-                        )
-                    target_key_name_list = [
-                        f"{key_name}_{target_key_name}"
-                        for target_key_name in target_type_key_map.values()
-                    ]
-                    target_key_name = (
-                        tuple(target_key_name_list)
-                        if len(target_key_name_list) > 1
-                        else target_key_name_list[0]
-                    )
-            cls._key_map[key_name] = target_key_name
+    def _get_key_specs(cls) -> _KeySpecs:
+        return cls._key_specs
 
 
 if typing.TYPE_CHECKING or is_pydantic_2():
