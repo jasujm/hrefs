@@ -1,5 +1,8 @@
-Unreleased
-----------
+Version 0.13
+------------
+
+Date
+  2023-12-05
 
 Changed
  * Refactor ``BaseReferrableModel`` internals. This is mainly for maintainability
