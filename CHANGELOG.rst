@@ -2,10 +2,9 @@ Unreleased
 ----------
 
 Changed
- * Rewrite and simplify ``BaseReferrableModel`` internals. This is mainly for
-   maintainability reasons. The API remains the same, but the new implementation
-   removes some earlier restrictions, such as forbidding recursive hyperlinks as
-   primary key.
+ * Refactor ``BaseReferrableModel`` internals. This is mainly for maintainability
+   reasons. The API remains the same, but the new implementation removes some
+   earlier restrictions, such as forbidding recursive hyperlinks as primary key.
 
 Fixed
  * Support forward references in hyperlinks in ``pydantic`` v2
