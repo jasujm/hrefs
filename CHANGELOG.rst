@@ -1,3 +1,9 @@
+Unreleased
+----------
+
+Fixed
+ * Fix matching mounted routes in newer versions of Starlette
+
 Version 0.13
 ------------
 

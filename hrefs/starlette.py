@@ -80,6 +80,22 @@ def _get_path_param_keys(app: Starlette, model_cls: ModelType) -> typing.Set[str
     )
 
 
+# Different versions of starlette have had different keys in scope for remaining
+# path after matching mount
+# Since https://github.com/encode/starlette/pull/2400/files the "path" and
+# "route_path" keys were dropped, but it became possible to just strip
+# "root_path" from the original
+
+
+def _new_path_from_scope(scope, original_path: str):
+    path = scope.get("path") or scope.get("route_path")
+    if not path:
+        root_path = scope["root_path"]
+        assert original_path.startswith(root_path)
+        path = original_path[len(root_path) :]
+    return path
+
+
 class _StarletteHrefResolver(HrefResolver):
     def __init__(
         self, request_or_app: RequestOrApp, base_url: typing.Optional[BaseUrl]
@@ -135,7 +151,7 @@ class _StarletteHrefResolver(HrefResolver):
     ) -> typing.Any:
         route_chain = _get_route_chain(self._get_app(), model_cls)
         assert len(route_chain) > 0
-        path = url.path
+        path = url.path or "/"
         query_params = QueryParams(url.query or "")
         path_params = {}
         *mount_routes, final_route = route_chain
@@ -147,7 +163,7 @@ class _StarletteHrefResolver(HrefResolver):
             if match_type == Match.FULL and scope:
                 scope_path_params = scope.get("path_params", {})
                 path_params.update(scope_path_params)
-                path = scope["path"]
+                path = _new_path_from_scope(scope, path)
             else:
                 break
         else:
