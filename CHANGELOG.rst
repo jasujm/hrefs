@@ -1,8 +1,14 @@
 Unreleased
 ----------
 
+Added
+ * Support Python 3.13
+
 Fixed
  * Fix matching mounted routes in newer versions of Starlette
+
+Removed
+ * Support for EOL Python versions prior to 3.9
 
 Version 0.13
 ------------
