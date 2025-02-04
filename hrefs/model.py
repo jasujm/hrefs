@@ -14,7 +14,6 @@ import typing
 
 import pydantic
 import pydantic.typing
-import typing_extensions
 
 from .href import Href, Referrable
 from .errors import ReferrableModelError
@@ -101,7 +100,7 @@ def _convert_params_to_key(
     return tuple(key_parts)
 
 
-class HrefResolver(typing_extensions.Protocol):
+class HrefResolver(typing.Protocol):
     """Hyperlink resolver for :class:`BaseReferrableModel` subclasses
 
     A hyperlink resolver acts as an integration point between models and the web
@@ -307,8 +306,8 @@ class _ReferrableModelMeta(_ModelMetaclass):
     ):
         key_parts = []
         for field_name, annotation in annotations.items():
-            if typing_extensions.get_origin(annotation) is typing_extensions.Annotated:
-                annotation_args = typing_extensions.get_args(annotation)
+            if typing.get_origin(annotation) is typing.Annotated:
+                annotation_args = typing.get_args(annotation)
                 key_annotations = [
                     key
                     for key in annotation_args
@@ -343,9 +342,9 @@ class _ReferrableModelMeta(_ModelMetaclass):
         key_name = key_metadata.name or field_name
         key_parts_specs = None
         is_href_with_forward_reference = False
-        key_part_type_origin = typing_extensions.get_origin(key_part_type)
+        key_part_type_origin = typing.get_origin(key_part_type)
         if key_part_type_origin is Href:
-            (target_type,) = typing_extensions.get_args(key_part_type)
+            (target_type,) = typing.get_args(key_part_type)
             if isinstance(target_type, typing.ForwardRef):
                 if not key_metadata.type_:
                     raise ReferrableModelError(

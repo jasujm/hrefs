@@ -1,6 +1,7 @@
 """Tests for Starlette/FastAPI integration"""
 
 import contextlib
+from typing import Annotated
 import uuid
 from unittest.mock import AsyncMock
 from urllib.parse import quote_plus as quote
@@ -15,7 +16,6 @@ from starlette.responses import PlainTextResponse
 from starlette.routing import Route, Mount, WebSocketRoute
 from starlette.testclient import TestClient
 from starlette.websockets import WebSocket
-from typing_extensions import Annotated
 
 from _util import parse_obj, parse_href
 from hrefs import (

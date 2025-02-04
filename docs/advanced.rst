@@ -52,11 +52,6 @@ Then ``MyModel.my_id`` is the key used by ``Href[MyModel]``.
    >>> parse_obj_as(Href[MyModel], model)
    Href(key=1, url=AnyHttpUrl(...'http://example.com/my_models/1'...))
 
-.. note::
-
-   Before Python 3.8, ``typing_extensions.Annotated`` can be used to annotate
-   the fields.
-
 Composite keys
 ..............
 

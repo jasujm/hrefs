@@ -1,9 +1,10 @@
 """Test for referrable pydantic models"""
 
+from typing import Annotated
+
 from hypothesis import given, strategies as st
 import pydantic
 import pytest
-from typing_extensions import Annotated
 
 from _util import parse_href
 from hrefs import BaseReferrableModel, PrimaryKey, Href, ReferrableModelError

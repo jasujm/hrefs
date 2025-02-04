@@ -9,7 +9,7 @@ libraries in a more persistent format!
 
 # pylint: disable=wrong-import-position,wrong-import-order
 
-from typing import Dict, List
+from typing import Annotated, Dict, List
 import uuid
 import warnings
 
@@ -17,7 +17,6 @@ from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware import Middleware
 import pydantic
 from pydantic import parse_obj_as
-from typing_extensions import Annotated
 
 from hrefs import Href, PrimaryKey, BaseReferrableModel
 from hrefs.starlette import HrefMiddleware

@@ -9,6 +9,7 @@ Fixed
 
 Removed
  * Support for EOL Python versions prior to 3.9
+ * Dependency to ``typing_extensions``
 
 Version 0.13
 ------------

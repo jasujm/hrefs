@@ -3,7 +3,6 @@
 import inspect
 import typing
 
-import typing_extensions
 import hypothesis.strategies as st
 
 from .href import Href
@@ -11,7 +10,7 @@ from ._util import TypeParser
 
 
 def _hrefs_strategy(model_type: typing.Type[Href]):
-    args = typing_extensions.get_args(model_type)
+    args = typing.get_args(model_type)
     if len(args) != 1:
         raise ValueError("Cannot create strategy for plain Href")
     referrable_type = args[0]
