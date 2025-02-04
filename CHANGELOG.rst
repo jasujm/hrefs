@@ -3,6 +3,7 @@ Unreleased
 
 Added
  * Support Python 3.13
+ * Distribute ``py.typed`` with the package
 
 Fixed
  * Fix matching mounted routes in newer versions of Starlette
