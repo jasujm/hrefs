@@ -41,21 +41,21 @@ requires-python=">=3.9"
 
 [project.optional-dependencies]
 test = [
-  "tox>=4.11",
-  "pytest>=7.4",
-  "hypothesis>=6.82",
-  "fastapi>=0.103",
-  "black>=23.7",
-  "pylint>=2.17",
-  "mypy>=1.5",
-  "httpx>=0.24",
+  "tox>=4.24",
+  "pytest>=8.3",
+  "hypothesis>=6.125",
+  "fastapi>=0.115",
+  "black>=25.1",
+  "pylint>=3.3",
+  "mypy>=1.15",
+  "httpx>=0.28",
   "pytest-skip-slow",
-  "coverage>=7.3",
+  "coverage>=7.6",
 ]
 
 doc = [
-  "sphinx<7",
-  "sphinx-rtd-theme<1.3",
+  "sphinx>=8.1",
+  "sphinx-rtd-theme>=3.0",
 ]
 
 [project.urls]
