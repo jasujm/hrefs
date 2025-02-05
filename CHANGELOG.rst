@@ -1,5 +1,8 @@
-Unreleased
-----------
+Version 0.14
+------------
+
+Date
+  2025-05-02
 
 Added
  * Support Python 3.13
