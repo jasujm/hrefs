@@ -54,8 +54,8 @@ test = [
 ]
 
 doc = [
-  "sphinx>=8.1",
-  "sphinx-rtd-theme>=3.0",
+  "sphinx>=8.1; python_version>=\"3.11\"",
+  "sphinx-rtd-theme>=3.0; python_version>=\"3.11\"",
 ]
 
 [project.urls]
